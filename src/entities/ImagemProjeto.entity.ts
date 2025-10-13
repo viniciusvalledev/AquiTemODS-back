@@ -4,7 +4,7 @@ import sequelize from '../config/database';
 class ImagemProduto extends Model {
   public id!: number;
   public url!: string;
-  public projetoId!: number; // Alterado
+  public projetoId!: number; 
 }
 
 ImagemProduto.init({

@@ -1,7 +1,7 @@
 import Usuario from './Usuario.entity';
 import Projeto from './Projeto.entity';
 import Avaliacao from './Avaliacao.entity';
-import ImagemProduto from './ImagemProduto.entity';
+import ImagemProduto from './ImagemProjeto.entity';
 
 // Relacionamentos
 Usuario.hasMany(Avaliacao, { foreignKey: 'usuarioId', as: 'avaliacoes' });
