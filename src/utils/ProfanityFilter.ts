@@ -52,7 +52,12 @@ const PALAVRAS_PROIBIDAS: string[] = [
     "pustula", "putaquepariu", "puto", "puxasaco", "rabo", "rabudo", "racha",
     "retardada", "ridicula", "ridiculo", "rola", "rosca", "sapatao", "tarado",
     "testuda", "transar", "trocha", "troucha", "trouxa", "troxa", "trolha",
-    "vaca", "vagina", "veada", "veado", "verme", "vigarista", "vtc", "vtmnc"
+    "vaca", "vagina", "veada", "veado", "verme", "vigarista", "vtc", "vtmnc", "fode", "foder", "fuder",
+    "fudor", "fudera", "fuderam", "fudendo", "fudidao", "fudidoes", "fudidos", "fudida", "fudidas",
+    "fuderao", "fuderam", "fuderia", "fuderia", "fuderiao", "fuderiamos", "fudermos", "fuderem", "fuderemnos",
+    "fudesse", "fudesses", "fuderia", "fuderiam", "fuderias", "fodido", "fodida", "fodidos", "fodidas",
+    "foderao", "foderam", "foderia", "foderiam", "foderias", "fodermos", "foderem", "foderemnos",
+    "fodesse", "fodesses", "fodidao", "fodidoes", "fodidos", "fodidas"
 ];
 
 class ProfanityFilter {

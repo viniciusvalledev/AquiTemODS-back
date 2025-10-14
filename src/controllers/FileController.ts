@@ -23,7 +23,7 @@ class FileController {
 
             const urlsPromises = files.map(file => FileStorageService.save(file));
             const urls = await Promise.all(urlsPromises);
-
+            
             return res.status(200).json({ urls });
         } catch (error: any) {
             return res.status(400).json({ message: `Falha ao fazer o upload das imagens: ${error.message}` });

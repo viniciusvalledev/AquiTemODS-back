@@ -13,7 +13,6 @@ class Usuario extends Model {
   public resetPasswordTokenExpiry!: Date | null;
   public unconfirmedEmail!: string | null;
   public emailChangeToken!: string | null;
-  public chosenAvatar!: string | null;
 }
 
 Usuario.init({
@@ -41,11 +40,6 @@ Usuario.init({
   password: {
     type: DataTypes.STRING,
     allowNull: false
-  },
-  chosenAvatar: {
-    type: DataTypes.STRING,
-    allowNull: true,
-    field: 'chosen_avatar'
   },
   enabled: {
     type: DataTypes.BOOLEAN,

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+
 interface AuthenticatedRequest extends Request {
     user?: {
         id: number;
@@ -15,14 +16,14 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
         return res.status(401).json({ message: 'Acesso negado. Token não fornecido.' });
     }
 
-    const token = authHeader.substring(7);
+    const token = authHeader.substring(7); 
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: number; username: string };
-
+        
         req.user = decoded;
-
-        next();
+        
+        next(); 
     } catch (error) {
         return res.status(401).json({ message: 'Token inválido ou expirado.' });
     }

@@ -8,8 +8,7 @@ const router = Router();
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Aponta para a pasta /uploads na raiz do projeto
-    cb(null, path.resolve(__dirname, "..", "..", "uploads"));
+    cb(null, path.resolve(__dirname, "..", "uploads"));
   },
   filename: (req, file, cb) => {
     const extension = path.extname(file.originalname);

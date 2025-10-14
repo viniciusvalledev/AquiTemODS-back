@@ -1,7 +1,9 @@
+// src/server.ts - VERSÃO CORRIGIDA PARA .env.local
+
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+dotenv.config({ path: path.resolve(__dirname, "..", ".env.local") });
 
 console.log("Servindo uploads em:", path.resolve(__dirname, "..", "uploads"));
 import app from "./app";

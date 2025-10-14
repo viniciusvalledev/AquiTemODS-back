@@ -10,4 +10,4 @@ router.get("/pending", adminAuthMiddleware, AdminController.getPending);
 router.post("/approve/:id", adminAuthMiddleware, AdminController.approveRequest);
 router.post("/reject/:id", adminAuthMiddleware, AdminController.rejectRequest);
 
-export default router;  
+export default router;

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import AvaliacaoService from '../services/AvaliacaoService';
 
 interface AuthenticatedRequest extends Request {
-    user?: {
+    user?: { 
         id: number;
         username: string;
     }
@@ -14,9 +14,8 @@ class AvaliacaoController {
             const usuarioLogadoId = req.user?.id;
             if (!usuarioLogadoId) return res.status(401).json({ message: "Não autorizado" });
 
-            // Alterado para receber projetoId diretamente no corpo da requisição
-            const dadosAvaliacao = { ...req.body };
-
+            const dadosAvaliacao = { ...req.body, estabelecimentoId: req.body.estabelecimento.estabelecimentoId };
+            
             const novaAvaliacao = await AvaliacaoService.submeterAvaliacao(dadosAvaliacao, usuarioLogadoId);
             return res.status(201).json(novaAvaliacao);
         } catch (error: any) {
@@ -50,10 +49,10 @@ class AvaliacaoController {
         }
     }
 
-    public async listarPorProjeto(req: Request, res: Response): Promise<Response> {
+    public async listarPorEstabelecimento(req: Request, res: Response): Promise<Response> {
         try {
-            const projetoId = parseInt(req.params.id);
-            const avaliacoes = await AvaliacaoService.listarPorProjetoDTO(projetoId);
+            const estabelecimentoId = parseInt(req.params.id);
+            const avaliacoes = await AvaliacaoService.listarPorEstabelecimentoDTO(estabelecimentoId);
             return res.json(avaliacoes);
         } catch (error: any) {
             return res.status(500).json({ message: error.message });

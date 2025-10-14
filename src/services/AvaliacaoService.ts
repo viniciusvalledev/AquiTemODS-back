@@ -1,16 +1,16 @@
-import { Avaliacao, Projeto, Usuario } from "../entities";
+import { Avaliacao, Estabelecimento, Usuario } from "../entities";
 import ProfanityFilter from "../utils/ProfanityFilter";
 import { containsEmoji } from "../utils/ValidationEmoji";
 
 class AvaliacaoService {
   public async submeterAvaliacao(dadosAvaliacao: any, usuarioLogadoId: number) {
-    const { nota, comentario, projetoId } = dadosAvaliacao;
+    const { nota, comentario, estabelecimentoId } = dadosAvaliacao;
 
     if (nota < 1 || nota > 5) {
       throw new Error("A nota da avaliação deve estar entre 1 e 5.");
     }
-    if (!projetoId) {
-      throw new Error("O ID do projeto é obrigatório.");
+    if (!estabelecimentoId) {
+      throw new Error("O ID do estabelecimento é obrigatório.");
     }
     if (ProfanityFilter.contemPalavrao(comentario)) {
       throw new Error("Você utilizou palavras inapropriadas.");
@@ -19,28 +19,28 @@ class AvaliacaoService {
       throw new Error("O comentário não pode conter emojis.");
     }
 
-    const projeto = await Projeto.findByPk(projetoId);
-    if (!projeto) {
+    const estabelecimento = await Estabelecimento.findByPk(estabelecimentoId);
+    if (!estabelecimento) {
       throw new Error(
-        `Projeto não encontrado com o ID: ${projetoId}`
+        `Estabelecimento não encontrado com o ID: ${estabelecimentoId}`
       );
     }
 
     const avaliacaoExistente = await Avaliacao.findOne({
       where: {
         usuarioId: usuarioLogadoId,
-        projetoId: projetoId,
+        estabelecimentoId: estabelecimentoId,
       },
     });
 
     if (avaliacaoExistente) {
-      throw new Error("Este usuário já avaliou este projeto.");
+      throw new Error("Este utilizador já avaliou este estabelecimento.");
     }
 
     return Avaliacao.create({
       nota,
       comentario,
-      projetoId,
+      estabelecimentoId,
       usuarioId: usuarioLogadoId,
     });
   }
@@ -89,23 +89,21 @@ class AvaliacaoService {
     await avaliacao.destroy();
   }
 
-  public async listarPorProjetoDTO(projetoId: number) {
+  public async listarPorEstabelecimentoDTO(estabelecimentoId: number) {
     return Avaliacao.findAll({
-      where: { projetoId },
+      where: { estabelecimentoId },
       include: [
         {
           model: Usuario,
           as: "usuario",
           attributes: {
-            exclude: [ // Campos a serem excluídos da resposta
+            exclude: [
               "password",
               "email",
-              "enabled",
-              "confirmationToken",
-              "resetPasswordToken",
-              "resetPasswordTokenExpiry",
-              "unconfirmedEmail",
-              "emailChangeToken"
+              "cpf",
+              "dataNascimento",
+              "createdAt",
+              "updatedAt",
             ],
           },
         },

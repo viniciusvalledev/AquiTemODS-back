@@ -3,7 +3,7 @@ import AuthService from '../services/AuthService';
 
 interface AuthenticatedRequest extends Request {
     user?: {
-        id: number;
+        id: number; 
         username: string;
     }
 }
@@ -11,7 +11,7 @@ interface AuthenticatedRequest extends Request {
 class UserController {
     public async updateUserProfile(req: AuthenticatedRequest, res: Response): Promise<Response> {
         try {
-            const userId = req.user?.id;
+            const userId = req.user?.id; 
             if (!userId) return res.status(401).json({ message: "Não autorizado" });
 
             const updatedUser = await AuthService.updateUserProfile(userId, req.body);
@@ -25,7 +25,7 @@ class UserController {
 
     public async deleteUserProfile(req: AuthenticatedRequest, res: Response): Promise<Response> {
         try {
-            const userId = req.user?.id;
+            const userId = req.user?.id; 
             if (!userId) return res.status(401).json({ message: "Não autorizado" });
 
             await AuthService.deleteUser(userId);
@@ -37,7 +37,7 @@ class UserController {
 
     public async updateUserPassword(req: AuthenticatedRequest, res: Response): Promise<Response> {
         try {
-            const userId = req.user?.id;
+            const userId = req.user?.id; 
             if (!userId) return res.status(401).json({ message: "Não autorizado" });
 
             await AuthService.updateUserPassword(userId, req.body);

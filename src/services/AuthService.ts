@@ -8,7 +8,7 @@ import EmailService from "../utils/EmailService";
 import {
   IUpdatePasswordRequest,
   IUpdateProfileRequest,
-} from "../interfaces/request";
+} from "../interfaces/requests";
 import { containsEmoji } from "../utils/ValidationEmoji";
 
 class AuthService {
@@ -18,13 +18,13 @@ class AuthService {
         "Você utilizou palavras inapropriadas no nome de usuário."
       );
     }
-    if (containsEmoji(dadosUsuario.username)) {
-      throw new Error("O nome de usuário não pode conter emojis.");
-    }
-    
     const usernameExistente = await Usuario.findOne({
       where: { username: dadosUsuario.username, enabled: true },
     });
+    if (containsEmoji(dadosUsuario.username)) {
+      throw new Error("O nome de usuário não pode conter emojis.");
+    }
+
     if (usernameExistente) {
       throw new Error("Usuário já cadastrado, use outro e tente novamente.");
     }
@@ -36,14 +36,30 @@ class AuthService {
       if (emailExistente.enabled) {
         throw new Error("Email já cadastrado, use outro e tente novamente.");
       }
-      // Se o usuário existe mas não está habilitado, permite uma nova tentativa de cadastro deletando o antigo.
+
       await emailExistente.destroy();
+    }
+
+    const utilizadorExistente = await Usuario.findOne({
+      where: {
+        [Op.or]: [
+          { username: dadosUsuario.username },
+          { email: dadosUsuario.email },
+        ],
+      },
+    });
+
+    if (utilizadorExistente) {
+      if (utilizadorExistente.username === dadosUsuario.username)
+        throw new Error("Usuário já cadastrado, use outro e tente novamente.");
+      if (utilizadorExistente.email === dadosUsuario.email)
+        throw new Error("Email já cadastrado, use outro e tente novamente.");
     }
 
     const senhaCriptografada = await bcrypt.hash(dadosUsuario.password, 10);
     const tokenConfirmacao = uuidv4();
 
-    const novoUsuario = await Usuario.create({
+    const novoUtilizador = await Usuario.create({
       nomeCompleto: dadosUsuario.nomeCompleto,
       username: dadosUsuario.username,
       email: dadosUsuario.email,
@@ -53,121 +69,120 @@ class AuthService {
     });
 
     await EmailService.sendConfirmationEmail(
-      novoUsuario.email,
+      novoUtilizador.email,
       tokenConfirmacao
     );
 
-    const { password, ...dadosSeguros } = novoUsuario.get({ plain: true });
+    const { password, ...dadosSeguros } = novoUtilizador.get({ plain: true });
     return dadosSeguros;
   }
 
   public async login(username: string, pass: string) {
-    const usuario = await Usuario.findOne({
+    const utilizador = await Usuario.findOne({
       where: {
         [Op.or]: [{ username: username }, { email: username }],
       },
     });
 
-    if (!usuario) {
+    if (!utilizador) {
       throw new Error("Usuário ou senha inválidos");
     }
 
-    if (!usuario.enabled) {
+    if (!utilizador.enabled) {
       throw new Error(
         "Sua conta ainda não foi verificada. Por favor, verifique seu e-mail."
       );
     }
 
-    const isMatch = await bcrypt.compare(pass, usuario.password);
+    const isMatch = await bcrypt.compare(pass, utilizador.password);
     if (!isMatch) {
       throw new Error("Usuário ou senha inválidos");
     }
 
     const token = jwt.sign(
-      { id: usuario.usuarioId, username: usuario.username },
+      { id: utilizador.usuarioId, username: utilizador.username },
       process.env.JWT_SECRET || "default_secret",
-      { expiresIn: "8h" } // Aumentado o tempo de expiração
+      { expiresIn: "1h" }
     );
 
-    const { password, ...dadosSeguros } = usuario.get({ plain: true });
+    const { password, ...dadosSeguros } = utilizador.get({ plain: true });
     return { user: dadosSeguros, token };
   }
 
   public async confirmUserAccount(token: string) {
-    const usuario = await Usuario.findOne({
+    const utilizador = await Usuario.findOne({
       where: { confirmationToken: token },
     });
 
-    if (!usuario) {
+    if (!utilizador) {
       throw new Error("Token de confirmação inválido ou não encontrado.");
     }
 
-    usuario.enabled = true;
-    usuario.confirmationToken = null;
-    await usuario.save();
+    utilizador.enabled = true;
+    utilizador.confirmationToken = null;
+    await utilizador.save();
   }
 
   public async confirmEmailChange(token: string) {
-    const usuario = await Usuario.findOne({
+    const utilizador = await Usuario.findOne({
       where: { emailChangeToken: token },
     });
 
-    if (!usuario || !usuario.unconfirmedEmail) {
+    if (!utilizador || !utilizador.unconfirmedEmail) {
       throw new Error(
         "Token de alteração de e-mail inválido ou não encontrado."
       );
     }
 
-    usuario.email = usuario.unconfirmedEmail;
-    usuario.unconfirmedEmail = null;
-    usuario.emailChangeToken = null;
-    await usuario.save();
+    utilizador.email = utilizador.unconfirmedEmail;
+    utilizador.unconfirmedEmail = null;
+    utilizador.emailChangeToken = null;
+    await utilizador.save();
   }
 
   public async forgotPassword(email: string) {
-    const usuario = await Usuario.findOne({ where: { email } });
+    const utilizador = await Usuario.findOne({ where: { email } });
 
-    if (usuario) {
+    if (utilizador) {
       const token = uuidv4();
-      usuario.resetPasswordToken = token;
+      utilizador.resetPasswordToken = token;
       const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 1); // Token expira em 1 hora
-      usuario.resetPasswordTokenExpiry = expiryDate;
+      expiryDate.setHours(expiryDate.getHours() + 1);
+      utilizador.resetPasswordTokenExpiry = expiryDate;
 
-      await usuario.save();
-      await EmailService.sendPasswordResetEmail(usuario.email, token);
+      await utilizador.save();
+      await EmailService.sendPasswordResetEmail(utilizador.email, token);
     }
   }
 
   public async resetPassword(token: string, newPassword: string) {
-    const usuario = await Usuario.findOne({
-      where: {
-        resetPasswordToken: token,
-        resetPasswordTokenExpiry: {
-          [Op.gt]: new Date(), // Verifica se o token não expirou
-        },
-      },
+    const utilizador = await Usuario.findOne({
+      where: { resetPasswordToken: token },
     });
 
-    if (!usuario) {
+    if (!utilizador || !utilizador.resetPasswordTokenExpiry) {
       throw new Error("Token de redefinição de senha inválido ou expirado.");
     }
 
-    usuario.password = await bcrypt.hash(newPassword, 10);
-    usuario.resetPasswordToken = null;
-    usuario.resetPasswordTokenExpiry = null;
-    await usuario.save();
+    if (utilizador.resetPasswordTokenExpiry < new Date()) {
+      throw new Error("Token de redefinição de senha expirado.");
+    }
+
+    utilizador.password = await bcrypt.hash(newPassword, 10);
+    utilizador.resetPasswordToken = null;
+    utilizador.resetPasswordTokenExpiry = null;
+    await utilizador.save();
   }
 
   public async updateUserProfile(userId: number, data: IUpdateProfileRequest) {
-    const usuario = await Usuario.findOne({ where: { usuarioId: userId } });
-    if (!usuario) throw new Error("Usuário não encontrado.");
+    const utilizador = await Usuario.findOne({ where: { usuarioId: userId } });
+    if (!utilizador) throw new Error("Utilizador não encontrado.");
 
     if (data.nomeCompleto) {
-      usuario.nomeCompleto = data.nomeCompleto;
+      utilizador.nomeCompleto = data.nomeCompleto;
     }
 
-    if (data.username && data.username !== usuario.username) {
+    if (data.username && data.username !== utilizador.username) {
       if (ProfanityFilter.contemPalavrao(data.username)) {
         throw new Error("Você utilizou palavras inapropriadas.");
       }
@@ -175,11 +190,11 @@ class AuthService {
         where: { username: data.username },
       });
       if (usernameExists)
-        throw new Error("O novo nome de usuário já está em uso.");
-      usuario.username = data.username;
+        throw new Error("O novo nome de utilizador já está em uso.");
+      utilizador.username = data.username;
     }
 
-    if (data.email && data.email.toLowerCase() !== usuario.email) {
+    if (data.email && data.email.toLowerCase() !== utilizador.email) {
       const emailExists = await Usuario.findOne({
         where: { email: data.email },
       });
@@ -187,42 +202,41 @@ class AuthService {
         throw new Error("O novo e-mail já está em uso por outra conta.");
 
       const token = uuidv4();
-      usuario.unconfirmedEmail = data.email;
-      usuario.emailChangeToken = token;
+      utilizador.unconfirmedEmail = data.email;
+      utilizador.emailChangeToken = token;
 
       await EmailService.sendEmailChangeConfirmationEmail(data.email, token);
     }
 
-    return await usuario.save();
+    return await utilizador.save();
   }
 
   public async updateUserPassword(
     userId: number,
     request: IUpdatePasswordRequest
   ) {
-    const usuario = await Usuario.findOne({ where: { usuarioId: userId } });
-    if (!usuario) throw new Error("Usuário não encontrado.");
+    const utilizador = await Usuario.findOne({ where: { usuarioId: userId } });
+    if (!utilizador) throw new Error("Utilizador não encontrado.");
 
     const isMatch = await bcrypt.compare(
       request.currentPassword,
-      usuario.password
+      utilizador.password
     );
     if (!isMatch) {
       throw new Error("A senha atual está incorreta.");
     }
 
-    usuario.password = await bcrypt.hash(request.newPassword, 10);
-    await usuario.save();
+    utilizador.password = await bcrypt.hash(request.newPassword, 10);
+    await utilizador.save();
   }
 
   public async deleteUser(userId: number) {
-    const usuario = await Usuario.findOne({ where: { usuarioId: userId } });
-    if (!usuario) throw new Error("Usuário não encontrado.");
+    const utilizador = await Usuario.findOne({ where: { usuarioId: userId } });
+    if (!utilizador) throw new Error("Utilizador não encontrado.");
 
-    // Desvincula as avaliações em vez de deletar
-    await Avaliacao.update({ usuarioId: null }, { where: { usuarioId: usuario.usuarioId } });
+    await Avaliacao.destroy({ where: { usuario_id: utilizador.usuarioId } });
 
-    await usuario.destroy();
+    await utilizador.destroy();
   }
 }
 

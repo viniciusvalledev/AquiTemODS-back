@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
-import Projeto, {
-  StatusProjeto,
-} from "../entities/Projeto.entity";
+import Estabelecimento, {
+  StatusEstabelecimento,
+} from "../entities/Estabelecimento.entity";
 import * as jwt from "jsonwebtoken";
-import ImagemProjeto from "../entities/ImagemProjeto.entity";
-import sequelize from "../config/database";
-import fs from "fs/promises";
+import ImagemProduto from "../entities/ImagemProduto.entity";
+import sequelize from "../config/database"; // Importe a instância do sequelize
+import fs from "fs/promises"; // Para deletar arquivos antigos
 import path from "path";
+import EmailService from "../utils/EmailService";
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
@@ -32,21 +33,21 @@ export class AdminController {
   static async getPending(req: Request, res: Response) {
     try {
       const includeOptions = {
-        model: ImagemProjeto,
-        as: "imagens",
+        model: ImagemProduto,
+        as: "produtosImg",
         attributes: ["url"],
       };
 
-      const cadastros = await Projeto.findAll({
-        where: { status: StatusProjeto.PENDENTE_APROVACAO },
+      const cadastros = await Estabelecimento.findAll({
+        where: { status: StatusEstabelecimento.PENDENTE_APROVACAO },
         include: [includeOptions],
       });
-      const atualizacoes = await Projeto.findAll({
-        where: { status: StatusProjeto.PENDENTE_ATUALIZACAO },
+      const atualizacoes = await Estabelecimento.findAll({
+        where: { status: StatusEstabelecimento.PENDENTE_ATUALIZACAO },
         include: [includeOptions],
       });
-      const exclusoes = await Projeto.findAll({
-        where: { status: StatusProjeto.PENDENTE_EXCLUSAO },
+      const exclusoes = await Estabelecimento.findAll({
+        where: { status: StatusEstabelecimento.PENDENTE_EXCLUSAO },
         include: [includeOptions],
       });
 
@@ -64,34 +65,50 @@ export class AdminController {
     const transaction = await sequelize.transaction();
 
     try {
-      const projeto = await Projeto.findByPk(id, {
+      const estabelecimento = await Estabelecimento.findByPk(id, {
         transaction,
       });
-      if (!projeto) {
+      if (!estabelecimento) {
         await transaction.rollback();
         return res
           .status(404)
-          .json({ message: "Projeto não encontrado." });
+          .json({ message: "Estabelecimento não encontrado." });
       }
+      let emailInfo: { subject: string; html: string } | null = null;
 
-      switch (projeto.status) {
-        case StatusProjeto.PENDENTE_APROVACAO:
-          projeto.status = StatusProjeto.ATIVO;
-          projeto.ativo = true;
-          await projeto.save({ transaction });
+      switch (estabelecimento.status) {
+        case StatusEstabelecimento.PENDENTE_APROVACAO:
+          estabelecimento.status = StatusEstabelecimento.ATIVO;
+          estabelecimento.ativo = true;
+          await estabelecimento.save({ transaction });
+
+          emailInfo = {
+            subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+            html: `
+            <h1>Olá, ${estabelecimento.nomeResponsavel}!</h1>
+            <p>Temos uma ótima notícia: o seu estabelecimento, <strong>${estabelecimento.nomeFantasia}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+            <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
+            <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
+            <br>
+            <p>Atenciosamente,</p>
+            <p><strong>Equipe MeideSaquá.</strong></p>
+          `,
+          };
           break;
 
-        case StatusProjeto.PENDENTE_ATUALIZACAO:
-          if (projeto.dados_atualizacao) {
-            const dadosRecebidos = projeto.dados_atualizacao as any;
+        case StatusEstabelecimento.PENDENTE_ATUALIZACAO:
+          if (estabelecimento.dados_atualizacao) {
+            const dadosRecebidos = estabelecimento.dados_atualizacao as any;
             const dadosParaAtualizar: { [key: string]: any } = {
               ...dadosRecebidos,
             };
 
+            // 1. LÓGICA PARA ATUALIZAR A LOGO
             if (dadosRecebidos.logo) {
-              const logoAntigaUrl = projeto.logoUrl;
+              const logoAntigaUrl = estabelecimento.logoUrl;
               if (logoAntigaUrl) {
                 try {
+                  // Deleta o arquivo antigo
                   const filePath = path.join(
                     __dirname,
                     "..",
@@ -106,19 +123,22 @@ export class AdminController {
                   );
                 }
               }
+              // Mapeia o novo caminho para a coluna correta do banco
               dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
-              delete dadosParaAtualizar.logo;
+              delete dadosParaAtualizar.logo; // Remove a chave antiga
             }
 
+            // 2. LÓGICA PARA ATUALIZAR AS IMAGENS DE PRODUTOS
             if (
-              dadosRecebidos.imagens &&
-              Array.isArray(dadosRecebidos.imagens)
+              dadosRecebidos.produtos &&
+              Array.isArray(dadosRecebidos.produtos)
             ) {
-              const imagensAntigas = await ImagemProjeto.findAll({
-                where: { projetoId: projeto.projetoId },
+              const imagensAntigas = await ImagemProduto.findAll({
+                where: { estabelecimentoId: estabelecimento.estabelecimentoId },
                 transaction,
               });
 
+              // Deleta os arquivos antigos
               for (const imagem of imagensAntigas) {
                 try {
                   const filePath = path.join(__dirname, "..", "..", imagem.url);
@@ -131,41 +151,89 @@ export class AdminController {
                 }
               }
 
-              await ImagemProjeto.destroy({
-                where: { projetoId: projeto.projetoId },
+              // Deleta as referências antigas no banco
+              await ImagemProduto.destroy({
+                where: { estabelecimentoId: estabelecimento.estabelecimentoId },
                 transaction,
               });
 
-              const novasImagens = dadosRecebidos.imagens.map(
+              // Cria as novas referências no banco
+              const novasImagens = dadosRecebidos.produtos.map(
                 (url: string) => ({
                   url,
-                  projetoId: projeto.projetoId,
+                  estabelecimentoId: estabelecimento.estabelecimentoId,
                 })
               );
-              await ImagemProjeto.bulkCreate(novasImagens, { transaction });
-              delete dadosParaAtualizar.imagens;
+              await ImagemProduto.bulkCreate(novasImagens, { transaction });
+              delete dadosParaAtualizar.produtos; // Remove a chave antiga
             }
 
+            // 3. ATUALIZA O STATUS E LIMPA OS DADOS TEMPORÁRIOS
             dadosParaAtualizar.dados_atualizacao = null;
-            dadosParaAtualizar.status = StatusProjeto.ATIVO;
+            dadosParaAtualizar.status = StatusEstabelecimento.ATIVO;
 
-            await projeto.update(dadosParaAtualizar, { transaction });
+            // 4. APLICA TODAS AS MUDANÇAS NO BANCO
+            await estabelecimento.update(dadosParaAtualizar, { transaction });
           } else {
-            projeto.dados_atualizacao = null;
-            projeto.status = StatusProjeto.ATIVO;
-            await projeto.save({ transaction });
+            // Caso não hajam dados, apenas reativa
+            estabelecimento.dados_atualizacao = null;
+            estabelecimento.status = StatusEstabelecimento.ATIVO;
+            await estabelecimento.save({ transaction });
           }
+          emailInfo = {
+            subject:
+              "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+            html: `
+            <h1>Olá, ${estabelecimento.nomeResponsavel}!</h1>
+            <p>A sua solicitação para atualizar os dados do estabelecimento <strong>${estabelecimento.nomeFantasia}</strong> foi aprovada.</p>
+            <p>As novas informações já estão visíveis para todos na plataforma.</p>
+            <br>
+            <p>Atenciosamente,</p>
+            <p><strong>Equipe MeideSaquá</strong></p>
+          `,
+          };
           break;
 
-        case StatusProjeto.PENDENTE_EXCLUSAO:
-          await projeto.destroy({ transaction });
-          await transaction.commit();
+        case StatusEstabelecimento.PENDENTE_EXCLUSAO:
+          emailInfo = {
+            subject:
+              "Seu estabelecimento foi removido da plataforma MeideSaquá",
+            html: `
+            <h1>Olá, ${estabelecimento.nomeResponsavel}.</h1>
+            <p>Informamos que a sua solicitação para remover o estabelecimento <strong>${estabelecimento.nomeFantasia}</strong> da nossa plataforma foi concluída com sucesso.</p>
+            <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
+            <br>
+            <p>Atenciosamente,</p>
+            <p><strong>Equipe MeideSaquá</strong></p>
+          `,
+          };
+          await estabelecimento.destroy({ transaction });
+          await transaction.commit(); // Commit antes de retornar
           return res
             .status(200)
-            .json({ message: "Projeto excluído com sucesso." });
+            .json({ message: "Estabelecimento excluído com sucesso." });
       }
 
+      // Se tudo deu certo, efetiva as mudanças
       await transaction.commit();
+
+      if (emailInfo) {
+        try {
+          await EmailService.sendGenericEmail({
+            to: estabelecimento.emailEstabelecimento,
+            subject: emailInfo.subject,
+            html: emailInfo.html,
+          });
+          console.log(
+            `Email de notificação enviado com sucesso para ${estabelecimento.emailEstabelecimento}`
+          );
+        } catch (error) {
+          console.error(
+            `Falha ao enviar email de notificação para ${estabelecimento.emailEstabelecimento}:`,
+            error
+          );
+        }
+      }
 
       return res
         .status(200)
@@ -179,45 +247,32 @@ export class AdminController {
     }
   }
 
-    static async rejectRequest(req: Request, res: Response) {
-        const { id } = req.params;
-        try {
-          const projeto = await Projeto.findByPk(id);
-          if (!projeto) {
-            return res
-              .status(404)
-              .json({ message: "Projeto não encontrado." });
-          }
-
-          if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {
-            // Se for um novo cadastro rejeitado, deleta os arquivos associados
-             if (projeto.logoUrl) {
-                try {
-                    await fs.unlink(path.join(__dirname, "..", "..", projeto.logoUrl));
-                } catch (e) { console.error("Falha ao deletar logo de projeto rejeitado", e)}
-            }
-            const imagens = await ImagemProjeto.findAll({ where: { projetoId: projeto.projetoId }});
-            for(const img of imagens) {
-                 try {
-                    await fs.unlink(path.join(__dirname, "..", "..", img.url));
-                } catch (e) { console.error("Falha ao deletar imagem de projeto rejeitado", e)}
-            }
-            await projeto.destroy();
-          } else {
-            // Se for uma atualização ou exclusão rejeitada, apenas reverte o status
-            projeto.status = StatusProjeto.ATIVO;
-            projeto.dados_atualizacao = null;
-            await projeto.save();
-          }
-
-          return res
-            .status(200)
-            .json({ message: "Solicitação rejeitada com sucesso." });
-        } catch (error) {
-          console.error(error);
-          return res
-            .status(500)
-            .json({ message: "Erro ao rejeitar a solicitação." });
-        }
+  static async rejectRequest(req: Request, res: Response) {
+    const { id } = req.params;
+    try {
+      const estabelecimento = await Estabelecimento.findByPk(id);
+      if (!estabelecimento) {
+        return res
+          .status(404)
+          .json({ message: "Estabelecimento não encontrado." });
       }
+
+      if (estabelecimento.status === StatusEstabelecimento.PENDENTE_APROVACAO) {
+        await estabelecimento.destroy();
+      } else {
+        estabelecimento.status = StatusEstabelecimento.ATIVO;
+        estabelecimento.dados_atualizacao = null;
+      }
+
+      await estabelecimento.save();
+      return res
+        .status(200)
+        .json({ message: "Solicitação rejeitada com sucesso." });
+    } catch (error) {
+      console.error(error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao rejeitar a solicitação." });
+    }
+  }
 }

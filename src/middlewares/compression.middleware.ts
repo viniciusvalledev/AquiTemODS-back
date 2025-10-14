@@ -33,13 +33,13 @@ export const compressImages = async (req: Request, res: Response, next: NextFunc
                         .then(async () => {
                             // Deleta o arquivo original após a compressão
                             await fs.unlink(originalPath);
-
+                            
                             // Atualiza as informações do arquivo na requisição
                             file.path = outputPath;
                             file.filename = newFilename;
                             file.mimetype = 'image/webp'; // Também é bom atualizar o mimetype
                         });
-
+                    
                     processingPromises.push(promise);
                 } else {
                     // Se não for uma imagem (ex: PDF), apenas informa no console e continua.
@@ -55,4 +55,4 @@ export const compressImages = async (req: Request, res: Response, next: NextFunc
         console.error("Erro ao processar arquivos:", error);
         next(error);
     }
-};  
+};
