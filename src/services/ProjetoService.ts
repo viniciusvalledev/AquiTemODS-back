@@ -1,28 +1,15 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database";
-import Projeto, {
-  StatusProjeto,
-} from "../entities/Projeto.entity";
+import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
 import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
 import path from "path";
 import fs from "fs/promises";
 
 class ProjetoService {
-  public async cadastrarProjetoComImagens(
-    dados: any
-  ): Promise<Projeto> {
+  public async cadastrarProjetoComImagens(dados: any): Promise<Projeto> {
     const transaction = await sequelize.transaction();
     try {
-      const emailExistente = await Projeto.findOne({
-        where: { emailContato: dados.emailContato },
-        transaction,
-      });
-      if (emailExistente) {
-        throw new Error("E-mail de contato já cadastrado no sistema.");
-      }
-
-      // Mapeia os dados do formulário para os campos do modelo Projeto
       const dadosParaCriacao = {
         nomeProjeto: dados.nomeProjeto,
         ods: dados.ods,
@@ -95,7 +82,7 @@ class ProjetoService {
       include: [
         {
           model: ImagemProjeto,
-          as: "imagens",
+          as: "projetoImg",
           attributes: ["url"],
         },
       ],
@@ -113,7 +100,7 @@ class ProjetoService {
       include: [
         {
           model: ImagemProjeto,
-          as: "imagens",
+          as: "projetoImg",
           attributes: ["url"],
         },
       ],
@@ -129,7 +116,7 @@ class ProjetoService {
       include: [
         {
           model: ImagemProjeto,
-          as: "imagens",
+          as: "projetoImg",
           attributes: ["url"],
         },
         {
@@ -163,7 +150,7 @@ class ProjetoService {
       include: [
         {
           model: ImagemProjeto,
-          as: "imagens",
+          as: "projetoImg",
           attributes: ["url"],
         },
       ],
@@ -181,6 +168,7 @@ class ProjetoService {
 
     const exclusoes = await Projeto.findAll({
       where: { status: StatusProjeto.PENDENTE_EXCLUSAO },
+      ...commonOptions,
     });
 
     return { cadastros, atualizacoes, exclusoes };

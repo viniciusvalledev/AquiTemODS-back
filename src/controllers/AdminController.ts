@@ -1,11 +1,9 @@
 import { Request, Response } from "express";
-import Projeto, {
-  StatusProjeto,
-} from "../entities/Projeto.entity";
+import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
 import * as jwt from "jsonwebtoken";
-import ImagemProduto from "../entities/ImagemProjeto.entity";
-import sequelize from "../config/database"; // Importe a instância do sequelize
-import fs from "fs/promises"; // Para deletar arquivos antigos
+import ImagemProjeto from "../entities/ImagemProjeto.entity";
+import sequelize from "../config/database";
+import fs from "fs/promises";
 import path from "path";
 import EmailService from "../utils/EmailService";
 
@@ -33,8 +31,8 @@ export class AdminController {
   static async getPending(req: Request, res: Response) {
     try {
       const includeOptions = {
-        model: ImagemProduto,
-        as: "produtosImg",
+        model: ImagemProjeto,
+        as: "projetoImg", // <-- ALIAS CORRIGIDO PARA 'projetoImg'
         attributes: ["url"],
       };
 
@@ -70,9 +68,7 @@ export class AdminController {
       });
       if (!projeto) {
         await transaction.rollback();
-        return res
-          .status(404)
-          .json({ message: "Projeto não encontrado." });
+        return res.status(404).json({ message: "Projeto não encontrado." });
       }
       let emailInfo: { subject: string; html: string } | null = null;
 
@@ -83,16 +79,15 @@ export class AdminController {
           await projeto.save({ transaction });
 
           emailInfo = {
-            subject: "Seu cadastro no MeideSaquá foi Aprovado!",
+            subject: "Seu cadastro no Aqui Tem ODS foi Aprovado!",
             html: `
-            <h1>Olá, ${projeto.prefeitura}!</h1>
-            <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
-            <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
-            <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
-            <br>
-            <p>Atenciosamente,</p>
-            <p><strong>Equipe MeideSaquá.</strong></p>
-          `,
+              <h1>Olá, ${projeto.prefeitura}!</h1>
+              <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+              <p>Agradecemos por fazer parte da comunidade de Saquarema.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe Aqui Tem ODS.</strong></p>
+            `,
           };
           break;
 
@@ -103,12 +98,10 @@ export class AdminController {
               ...dadosRecebidos,
             };
 
-            // 1. LÓGICA PARA ATUALIZAR A LOGO
             if (dadosRecebidos.logo) {
               const logoAntigaUrl = projeto.logoUrl;
               if (logoAntigaUrl) {
                 try {
-                  // Deleta o arquivo antigo
                   const filePath = path.join(
                     __dirname,
                     "..",
@@ -123,22 +116,19 @@ export class AdminController {
                   );
                 }
               }
-              // Mapeia o novo caminho para a coluna correta do banco
               dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
-              delete dadosParaAtualizar.logo; // Remove a chave antiga
+              delete dadosParaAtualizar.logo;
             }
 
-            // 2. LÓGICA PARA ATUALIZAR AS IMAGENS DE PRODUTOS
             if (
               dadosRecebidos.produtos &&
               Array.isArray(dadosRecebidos.produtos)
             ) {
-              const imagensAntigas = await ImagemProduto.findAll({
+              const imagensAntigas = await ImagemProjeto.findAll({
                 where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
-              // Deleta os arquivos antigos
               for (const imagem of imagensAntigas) {
                 try {
                   const filePath = path.join(__dirname, "..", "..", imagem.url);
@@ -151,61 +141,55 @@ export class AdminController {
                 }
               }
 
-              // Deleta as referências antigas no banco
-              await ImagemProduto.destroy({
+              await ImagemProjeto.destroy({
                 where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
-              // Cria as novas referências no banco
               const novasImagens = dadosRecebidos.produtos.map(
                 (url: string) => ({
                   url,
                   projetoId: projeto.projetoId,
                 })
               );
-              await ImagemProduto.bulkCreate(novasImagens, { transaction });
-              delete dadosParaAtualizar.produtos; // Remove a chave antiga
+              await ImagemProjeto.bulkCreate(novasImagens, { transaction });
+              delete dadosParaAtualizar.produtos;
             }
 
-            // 3. ATUALIZA O STATUS E LIMPA OS DADOS TEMPORÁRIOS
             dadosParaAtualizar.dados_atualizacao = null;
             dadosParaAtualizar.status = StatusProjeto.ATIVO;
 
-            // 4. APLICA TODAS AS MUDANÇAS NO BANCO
             await projeto.update(dadosParaAtualizar, { transaction });
           } else {
-            // Caso não hajam dados, apenas reativa
             projeto.dados_atualizacao = null;
             projeto.status = StatusProjeto.ATIVO;
             await projeto.save({ transaction });
           }
           emailInfo = {
             subject:
-              "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
+              "Sua solicitação de atualização no Aqui Tem ODS foi Aprovada!",
             html: `
-            <h1>Olá, ${projeto.prefeitura}!</h1>
-            <p>A sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
-            <p>As novas informações já estão visíveis para todos na plataforma.</p>
-            <br>
-            <p>Atenciosamente,</p>
-            <p><strong>Equipe MeideSaquá</strong></p>
-          `,
+              <h1>Olá, ${projeto.prefeitura}!</h1>
+              <p>A sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
+              <p>As novas informações já estão visíveis para todos na plataforma.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe Aqui Tem ODS</strong></p>
+            `,
           };
           break;
 
         case StatusProjeto.PENDENTE_EXCLUSAO:
           emailInfo = {
-            subject:
-              "Seu projeto foi removido da plataforma MeideSaquá",
+            subject: "Seu projeto foi removido da plataforma Aqui Tem ODS",
             html: `
-            <h1>Olá, ${projeto.prefeitura}.</h1>
-            <p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
-            <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
-            <br>
-            <p>Atenciosamente,</p>
-            <p><strong>Equipe MeideSaquá</strong></p>
-          `,
+              <h1>Olá, ${projeto.prefeitura}.</h1>
+              <p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
+              <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
+              <br>
+              <p>Atenciosamente,</p>
+              <p><strong>Equipe Aqui Tem ODS</strong></p>
+            `,
           };
           await projeto.destroy({ transaction });
           await transaction.commit(); // Commit antes de retornar
@@ -214,7 +198,6 @@ export class AdminController {
             .json({ message: "Projeto excluído com sucesso." });
       }
 
-      // Se tudo deu certo, efetiva as mudanças
       await transaction.commit();
 
       if (emailInfo) {
@@ -252,9 +235,7 @@ export class AdminController {
     try {
       const projeto = await Projeto.findByPk(id);
       if (!projeto) {
-        return res
-          .status(404)
-          .json({ message: "Projeto não encontrado." });
+        return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
       if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {

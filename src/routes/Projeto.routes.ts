@@ -46,24 +46,23 @@ router.post(
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.cadastrar
 );
 
 router.put(
-  "/solicitar-atualizacao",
+  "/solicitar-atualizacao/:id",
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.solicitarAtualizacao
 );
 
-router.post("/solicitar-exclusao", ProjetoController.solicitarExclusao);
+// ROTA ATUALIZADA
+router.post("/solicitar-exclusao/:id", ProjetoController.solicitarExclusao);
 router.post("/:id/status", ProjetoController.alterarStatus);
 
 export default router;
