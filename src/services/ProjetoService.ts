@@ -27,6 +27,7 @@ class ProjetoService {
         nomeProjeto: dados.nomeProjeto,
         ods: dados.ods,
         prefeitura: dados.prefeitura,
+        secretaria: dados.secretaria,
         emailContato: dados.emailContato,
         endereco: dados.endereco,
         descricao: dados.descricao,

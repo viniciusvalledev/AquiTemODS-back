@@ -13,6 +13,7 @@ class Projeto extends Model {
   public projetoId!: number;
   public ods!: string;
   public prefeitura!: string;
+  public secretaria!: string;
   public nomeProjeto!: string;
   public emailContato!: string;
   public endereco!: string;
@@ -42,6 +43,11 @@ Projeto.init(
     prefeitura: {
         type: DataTypes.STRING(18),
         allowNull: true,
+    },
+    secretaria: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: "secretaria",
     },
     nomeProjeto: {
       type: DataTypes.STRING,
@@ -99,8 +105,8 @@ Projeto.init(
   },
   {
     sequelize,
-    tableName: "projeto", // Nome da tabela no novo banco
-    timestamps: true, // Habilitar createdAt e updatedAt
+    tableName: "projeto",
+    timestamps: true,
   }
 );
 

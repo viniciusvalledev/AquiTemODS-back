@@ -7,7 +7,7 @@ const router = Router();
 
 router.get(
   "/Projeto/:id",
-  AvaliacaoController.listarPorEstabelecimento
+  AvaliacaoController.listarPorProjeto
 );
 
 

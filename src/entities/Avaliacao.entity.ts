@@ -6,7 +6,7 @@ class Avaliacao extends Model {
   public comentario!: string;
   public nota!: number;
   public usuarioId!: number;
-  public estabelecimentoId!: number;
+  public projetoId!: number;
 }
 
 Avaliacao.init({
@@ -29,9 +29,9 @@ Avaliacao.init({
     type: DataTypes.INTEGER,
     field: 'usuario_id' 
   },
-  estabelecimentoId: {
+  projetoId: {
     type: DataTypes.INTEGER,
-    field: 'estabelecimento_id'
+    field: 'projeto_id'
   }
 }, {
   sequelize,

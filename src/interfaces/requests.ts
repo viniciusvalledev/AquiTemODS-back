@@ -9,10 +9,10 @@ export interface IUpdatePasswordRequest {
   newPassword: string;
 }
 
-// Interface atualizada para corresponder à entidade 'Projeto'
 export interface ICreateUpdateProjetoRequest {
   ods?: string;
   prefeitura?: string;
+  secretaria?: string;
   nomeProjeto?: string;
   emailContato?: string;
   endereco?: string;

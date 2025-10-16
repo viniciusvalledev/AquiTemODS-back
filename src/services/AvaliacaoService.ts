@@ -20,7 +20,7 @@ class AvaliacaoService {
     }
 
     const projeto = await Projeto.findByPk(projetoId);
-    if (!Projeto) {
+    if (!projeto) {
       throw new Error(
         `Projeto não encontrado com o ID: ${projetoId}`
       );
@@ -29,12 +29,12 @@ class AvaliacaoService {
     const avaliacaoExistente = await Avaliacao.findOne({
       where: {
         usuarioId: usuarioLogadoId,
-        projetoId: projetoId,
+        ProjetoId: projetoId,
       },
     });
 
     if (avaliacaoExistente) {
-      throw new Error("Este utilizador já avaliou este projeto.");
+      throw new Error("Este utilizador já avaliou este Projeto.");
     }
 
     return Avaliacao.create({

@@ -4,8 +4,8 @@ import Projeto, {
 } from "../entities/Projeto.entity";
 import * as jwt from "jsonwebtoken";
 import ImagemProduto from "../entities/ImagemProjeto.entity";
-import sequelize from "../config/database"; 
-import fs from "fs/promises"; 
+import sequelize from "../config/database"; // Importe a instância do sequelize
+import fs from "fs/promises"; // Para deletar arquivos antigos
 import path from "path";
 import EmailService from "../utils/EmailService";
 
@@ -86,7 +86,7 @@ export class AdminController {
             subject: "Seu cadastro no MeideSaquá foi Aprovado!",
             html: `
             <h1>Olá, ${projeto.prefeitura}!</h1>
-            <p>Temos uma ótima notícia: o seu Projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+            <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
             <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
             <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
             <br>
@@ -134,7 +134,7 @@ export class AdminController {
               Array.isArray(dadosRecebidos.produtos)
             ) {
               const imagensAntigas = await ImagemProduto.findAll({
-                where: { ProjetoId: projeto.projetoId },
+                where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
@@ -153,7 +153,7 @@ export class AdminController {
 
               // Deleta as referências antigas no banco
               await ImagemProduto.destroy({
-                where: { ProjetoId: projeto.projetoId },
+                where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
@@ -161,7 +161,7 @@ export class AdminController {
               const novasImagens = dadosRecebidos.produtos.map(
                 (url: string) => ({
                   url,
-                  ProjetoId: projeto.projetoId,
+                  projetoId: projeto.projetoId,
                 })
               );
               await ImagemProduto.bulkCreate(novasImagens, { transaction });
@@ -185,7 +185,7 @@ export class AdminController {
               "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
             html: `
             <h1>Olá, ${projeto.prefeitura}!</h1>
-            <p>A sua solicitação para atualizar os dados do Projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
+            <p>A sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
             <p>As novas informações já estão visíveis para todos na plataforma.</p>
             <br>
             <p>Atenciosamente,</p>
@@ -197,10 +197,10 @@ export class AdminController {
         case StatusProjeto.PENDENTE_EXCLUSAO:
           emailInfo = {
             subject:
-              "Seu Projeto foi removido da plataforma MeideSaquá",
+              "Seu projeto foi removido da plataforma MeideSaquá",
             html: `
             <h1>Olá, ${projeto.prefeitura}.</h1>
-            <p>Informamos que a sua solicitação para remover o Projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
+            <p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
             <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
             <br>
             <p>Atenciosamente,</p>

@@ -3,7 +3,7 @@ import AuthService from "../services/AuthService";
 import Projeto, {
   StatusProjeto,
 } from "../entities/Projeto.entity";
-import ImagemProjeto from "../entities/ImagemProjeto.entity";
+import ImagemProjeto from "../entities/ImagemProjeto.entity"; // ADICIONAR IMPORT
 import * as jwt from "jsonwebtoken";
 import { Op } from "sequelize";
 

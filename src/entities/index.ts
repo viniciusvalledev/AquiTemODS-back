@@ -12,13 +12,13 @@ Projeto.hasMany(Avaliacao, {
 });
 Avaliacao.belongsTo(Projeto, {
   foreignKey: "projetoId",
-  as: "estabelecimento",
+  as: "projeto",
 });
 
 Projeto.hasMany(ImagemProjeto, {
-  foreignKey: "estabelecimentoId",
-  as: "produtosImg",
+  foreignKey: "projetoId",
+  as: "projetoImg",
 });
-ImagemProjeto.belongsTo(Projeto, { foreignKey: "estabelecimentoId" });
+ImagemProjeto.belongsTo(Projeto, { foreignKey: "projetoId" });
 
 export { Usuario, Projeto, Avaliacao, ImagemProjeto };

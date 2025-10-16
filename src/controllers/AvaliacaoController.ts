@@ -14,7 +14,7 @@ class AvaliacaoController {
             const usuarioLogadoId = req.user?.id;
             if (!usuarioLogadoId) return res.status(401).json({ message: "Não autorizado" });
 
-            const dadosAvaliacao = { ...req.body, estabelecimentoId: req.body.estabelecimento.estabelecimentoId };
+            const dadosAvaliacao = { ...req.body, projetoId: req.body.projeto.projetoId };
             
             const novaAvaliacao = await AvaliacaoService.submeterAvaliacao(dadosAvaliacao, usuarioLogadoId);
             return res.status(201).json(novaAvaliacao);
@@ -49,10 +49,10 @@ class AvaliacaoController {
         }
     }
 
-    public async listarPorEstabelecimento(req: Request, res: Response): Promise<Response> {
+    public async listarPorProjeto(req: Request, res: Response): Promise<Response> {
         try {
-            const estabelecimentoId = parseInt(req.params.id);
-            const avaliacoes = await AvaliacaoService.listarPorEstabelecimentoDTO(estabelecimentoId);
+            const projetoId = parseInt(req.params.id);
+            const avaliacoes = await AvaliacaoService.listarPorProjetoDTO(projetoId);
             return res.json(avaliacoes);
         } catch (error: any) {
             return res.status(500).json({ message: error.message });
