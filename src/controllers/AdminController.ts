@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
-import Estabelecimento, {
-  StatusEstabelecimento,
-} from "../entities/Estabelecimento.entity";
+import Projeto, {
+  StatusProjeto,
+} from "../entities/Projeto.entity";
 import * as jwt from "jsonwebtoken";
-import ImagemProduto from "../entities/ImagemProduto.entity";
-import sequelize from "../config/database"; // Importe a instância do sequelize
-import fs from "fs/promises"; // Para deletar arquivos antigos
+import ImagemProduto from "../entities/ImagemProjeto.entity";
+import sequelize from "../config/database"; 
+import fs from "fs/promises"; 
 import path from "path";
 import EmailService from "../utils/EmailService";
 
@@ -38,16 +38,16 @@ export class AdminController {
         attributes: ["url"],
       };
 
-      const cadastros = await Estabelecimento.findAll({
-        where: { status: StatusEstabelecimento.PENDENTE_APROVACAO },
+      const cadastros = await Projeto.findAll({
+        where: { status: StatusProjeto.PENDENTE_APROVACAO },
         include: [includeOptions],
       });
-      const atualizacoes = await Estabelecimento.findAll({
-        where: { status: StatusEstabelecimento.PENDENTE_ATUALIZACAO },
+      const atualizacoes = await Projeto.findAll({
+        where: { status: StatusProjeto.PENDENTE_ATUALIZACAO },
         include: [includeOptions],
       });
-      const exclusoes = await Estabelecimento.findAll({
-        where: { status: StatusEstabelecimento.PENDENTE_EXCLUSAO },
+      const exclusoes = await Projeto.findAll({
+        where: { status: StatusProjeto.PENDENTE_EXCLUSAO },
         include: [includeOptions],
       });
 
@@ -65,28 +65,28 @@ export class AdminController {
     const transaction = await sequelize.transaction();
 
     try {
-      const estabelecimento = await Estabelecimento.findByPk(id, {
+      const projeto = await Projeto.findByPk(id, {
         transaction,
       });
-      if (!estabelecimento) {
+      if (!projeto) {
         await transaction.rollback();
         return res
           .status(404)
-          .json({ message: "Estabelecimento não encontrado." });
+          .json({ message: "Projeto não encontrado." });
       }
       let emailInfo: { subject: string; html: string } | null = null;
 
-      switch (estabelecimento.status) {
-        case StatusEstabelecimento.PENDENTE_APROVACAO:
-          estabelecimento.status = StatusEstabelecimento.ATIVO;
-          estabelecimento.ativo = true;
-          await estabelecimento.save({ transaction });
+      switch (projeto.status) {
+        case StatusProjeto.PENDENTE_APROVACAO:
+          projeto.status = StatusProjeto.ATIVO;
+          projeto.ativo = true;
+          await projeto.save({ transaction });
 
           emailInfo = {
             subject: "Seu cadastro no MeideSaquá foi Aprovado!",
             html: `
-            <h1>Olá, ${estabelecimento.nomeResponsavel}!</h1>
-            <p>Temos uma ótima notícia: o seu estabelecimento, <strong>${estabelecimento.nomeFantasia}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+            <h1>Olá, ${projeto.prefeitura}!</h1>
+            <p>Temos uma ótima notícia: o seu Projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
             <p>A partir de agora, clientes podem encontrar o seu negócio e deixar avaliações.</p>
             <p>Agradecemos por fazer parte da comunidade de empreendedores de Saquarema.</p>
             <br>
@@ -96,16 +96,16 @@ export class AdminController {
           };
           break;
 
-        case StatusEstabelecimento.PENDENTE_ATUALIZACAO:
-          if (estabelecimento.dados_atualizacao) {
-            const dadosRecebidos = estabelecimento.dados_atualizacao as any;
+        case StatusProjeto.PENDENTE_ATUALIZACAO:
+          if (projeto.dados_atualizacao) {
+            const dadosRecebidos = projeto.dados_atualizacao as any;
             const dadosParaAtualizar: { [key: string]: any } = {
               ...dadosRecebidos,
             };
 
             // 1. LÓGICA PARA ATUALIZAR A LOGO
             if (dadosRecebidos.logo) {
-              const logoAntigaUrl = estabelecimento.logoUrl;
+              const logoAntigaUrl = projeto.logoUrl;
               if (logoAntigaUrl) {
                 try {
                   // Deleta o arquivo antigo
@@ -134,7 +134,7 @@ export class AdminController {
               Array.isArray(dadosRecebidos.produtos)
             ) {
               const imagensAntigas = await ImagemProduto.findAll({
-                where: { estabelecimentoId: estabelecimento.estabelecimentoId },
+                where: { ProjetoId: projeto.projetoId },
                 transaction,
               });
 
@@ -153,7 +153,7 @@ export class AdminController {
 
               // Deleta as referências antigas no banco
               await ImagemProduto.destroy({
-                where: { estabelecimentoId: estabelecimento.estabelecimentoId },
+                where: { ProjetoId: projeto.projetoId },
                 transaction,
               });
 
@@ -161,7 +161,7 @@ export class AdminController {
               const novasImagens = dadosRecebidos.produtos.map(
                 (url: string) => ({
                   url,
-                  estabelecimentoId: estabelecimento.estabelecimentoId,
+                  ProjetoId: projeto.projetoId,
                 })
               );
               await ImagemProduto.bulkCreate(novasImagens, { transaction });
@@ -170,22 +170,22 @@ export class AdminController {
 
             // 3. ATUALIZA O STATUS E LIMPA OS DADOS TEMPORÁRIOS
             dadosParaAtualizar.dados_atualizacao = null;
-            dadosParaAtualizar.status = StatusEstabelecimento.ATIVO;
+            dadosParaAtualizar.status = StatusProjeto.ATIVO;
 
             // 4. APLICA TODAS AS MUDANÇAS NO BANCO
-            await estabelecimento.update(dadosParaAtualizar, { transaction });
+            await projeto.update(dadosParaAtualizar, { transaction });
           } else {
             // Caso não hajam dados, apenas reativa
-            estabelecimento.dados_atualizacao = null;
-            estabelecimento.status = StatusEstabelecimento.ATIVO;
-            await estabelecimento.save({ transaction });
+            projeto.dados_atualizacao = null;
+            projeto.status = StatusProjeto.ATIVO;
+            await projeto.save({ transaction });
           }
           emailInfo = {
             subject:
               "Sua solicitação de atualização no MeideSaquá foi Aprovada!",
             html: `
-            <h1>Olá, ${estabelecimento.nomeResponsavel}!</h1>
-            <p>A sua solicitação para atualizar os dados do estabelecimento <strong>${estabelecimento.nomeFantasia}</strong> foi aprovada.</p>
+            <h1>Olá, ${projeto.prefeitura}!</h1>
+            <p>A sua solicitação para atualizar os dados do Projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
             <p>As novas informações já estão visíveis para todos na plataforma.</p>
             <br>
             <p>Atenciosamente,</p>
@@ -194,24 +194,24 @@ export class AdminController {
           };
           break;
 
-        case StatusEstabelecimento.PENDENTE_EXCLUSAO:
+        case StatusProjeto.PENDENTE_EXCLUSAO:
           emailInfo = {
             subject:
-              "Seu estabelecimento foi removido da plataforma MeideSaquá",
+              "Seu Projeto foi removido da plataforma MeideSaquá",
             html: `
-            <h1>Olá, ${estabelecimento.nomeResponsavel}.</h1>
-            <p>Informamos que a sua solicitação para remover o estabelecimento <strong>${estabelecimento.nomeFantasia}</strong> da nossa plataforma foi concluída com sucesso.</p>
+            <h1>Olá, ${projeto.prefeitura}.</h1>
+            <p>Informamos que a sua solicitação para remover o Projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
             <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
             <br>
             <p>Atenciosamente,</p>
             <p><strong>Equipe MeideSaquá</strong></p>
           `,
           };
-          await estabelecimento.destroy({ transaction });
+          await projeto.destroy({ transaction });
           await transaction.commit(); // Commit antes de retornar
           return res
             .status(200)
-            .json({ message: "Estabelecimento excluído com sucesso." });
+            .json({ message: "Projeto excluído com sucesso." });
       }
 
       // Se tudo deu certo, efetiva as mudanças
@@ -220,16 +220,16 @@ export class AdminController {
       if (emailInfo) {
         try {
           await EmailService.sendGenericEmail({
-            to: estabelecimento.emailEstabelecimento,
+            to: projeto.emailContato,
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
           console.log(
-            `Email de notificação enviado com sucesso para ${estabelecimento.emailEstabelecimento}`
+            `Email de notificação enviado com sucesso para ${projeto.emailContato}`
           );
         } catch (error) {
           console.error(
-            `Falha ao enviar email de notificação para ${estabelecimento.emailEstabelecimento}:`,
+            `Falha ao enviar email de notificação para ${projeto.emailContato}:`,
             error
           );
         }
@@ -250,21 +250,21 @@ export class AdminController {
   static async rejectRequest(req: Request, res: Response) {
     const { id } = req.params;
     try {
-      const estabelecimento = await Estabelecimento.findByPk(id);
-      if (!estabelecimento) {
+      const projeto = await Projeto.findByPk(id);
+      if (!projeto) {
         return res
           .status(404)
-          .json({ message: "Estabelecimento não encontrado." });
+          .json({ message: "Projeto não encontrado." });
       }
 
-      if (estabelecimento.status === StatusEstabelecimento.PENDENTE_APROVACAO) {
-        await estabelecimento.destroy();
+      if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {
+        await projeto.destroy();
       } else {
-        estabelecimento.status = StatusEstabelecimento.ATIVO;
-        estabelecimento.dados_atualizacao = null;
+        projeto.status = StatusProjeto.ATIVO;
+        projeto.dados_atualizacao = null;
       }
 
-      await estabelecimento.save();
+      await projeto.save();
       return res
         .status(200)
         .json({ message: "Solicitação rejeitada com sucesso." });

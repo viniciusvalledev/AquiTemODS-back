@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import AuthService from "../services/AuthService";
-import Estabelecimento, {
-  StatusEstabelecimento,
-} from "../entities/Estabelecimento.entity";
-import ImagemProduto from "../entities/ImagemProduto.entity"; // ADICIONAR IMPORT
+import Projeto, {
+  StatusProjeto,
+} from "../entities/Projeto.entity";
+import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import * as jwt from "jsonwebtoken";
 import { Op } from "sequelize";
 

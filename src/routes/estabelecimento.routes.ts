@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import EstabelecimentoController from "../controllers/EstabelecimentoController";
+import ProjetoController from "../controllers/ProjetoController";
 import { compressImages } from "../middlewares/compression.middleware";
 
 // Define o caminho para a pasta de uploads de forma segura
@@ -37,19 +37,18 @@ const upload = multer({
 
 const router = Router();
 
-router.get("/", EstabelecimentoController.listarTodos);
-router.get("/buscar", EstabelecimentoController.buscarPorNome);
-router.get("/:id", EstabelecimentoController.buscarPorId);
+router.get("/", ProjetoController.listarTodos);
+router.get("/buscar", ProjetoController.buscarPorNome);
+router.get("/:id", ProjetoController.buscarPorId);
 
 router.post(
   "/",
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
-  EstabelecimentoController.cadastrar
+  ProjetoController.cadastrar
 );
 
 router.put(
@@ -57,13 +56,12 @@ router.put(
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "produtos", maxCount: 5 },
-    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
-  EstabelecimentoController.solicitarAtualizacao
+  ProjetoController.solicitarAtualizacao
 );
 
-router.post("/solicitar-exclusao", EstabelecimentoController.solicitarExclusao);
-router.post("/:id/status", EstabelecimentoController.alterarStatus);
+router.post("/solicitar-exclusao", ProjetoController.solicitarExclusao);
+router.post("/:id/status", ProjetoController.alterarStatus);
 
 export default router;

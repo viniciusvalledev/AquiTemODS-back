@@ -1,16 +1,16 @@
-import { Avaliacao, Estabelecimento, Usuario } from "../entities";
+import { Avaliacao, Projeto, Usuario } from "../entities";
 import ProfanityFilter from "../utils/ProfanityFilter";
 import { containsEmoji } from "../utils/ValidationEmoji";
 
 class AvaliacaoService {
   public async submeterAvaliacao(dadosAvaliacao: any, usuarioLogadoId: number) {
-    const { nota, comentario, estabelecimentoId } = dadosAvaliacao;
+    const { nota, comentario, projetoId } = dadosAvaliacao;
 
     if (nota < 1 || nota > 5) {
       throw new Error("A nota da avaliação deve estar entre 1 e 5.");
     }
-    if (!estabelecimentoId) {
-      throw new Error("O ID do estabelecimento é obrigatório.");
+    if (!projetoId) {
+      throw new Error("O ID do projeto é obrigatório.");
     }
     if (ProfanityFilter.contemPalavrao(comentario)) {
       throw new Error("Você utilizou palavras inapropriadas.");
@@ -19,28 +19,28 @@ class AvaliacaoService {
       throw new Error("O comentário não pode conter emojis.");
     }
 
-    const estabelecimento = await Estabelecimento.findByPk(estabelecimentoId);
-    if (!estabelecimento) {
+    const projeto = await Projeto.findByPk(projetoId);
+    if (!Projeto) {
       throw new Error(
-        `Estabelecimento não encontrado com o ID: ${estabelecimentoId}`
+        `Projeto não encontrado com o ID: ${projetoId}`
       );
     }
 
     const avaliacaoExistente = await Avaliacao.findOne({
       where: {
         usuarioId: usuarioLogadoId,
-        estabelecimentoId: estabelecimentoId,
+        projetoId: projetoId,
       },
     });
 
     if (avaliacaoExistente) {
-      throw new Error("Este utilizador já avaliou este estabelecimento.");
+      throw new Error("Este utilizador já avaliou este projeto.");
     }
 
     return Avaliacao.create({
       nota,
       comentario,
-      estabelecimentoId,
+      projetoId,
       usuarioId: usuarioLogadoId,
     });
   }
@@ -89,9 +89,9 @@ class AvaliacaoService {
     await avaliacao.destroy();
   }
 
-  public async listarPorEstabelecimentoDTO(estabelecimentoId: number) {
+  public async listarPorProjetoDTO(projetoId: number) {
     return Avaliacao.findAll({
-      where: { estabelecimentoId },
+      where: { projetoId },
       include: [
         {
           model: Usuario,

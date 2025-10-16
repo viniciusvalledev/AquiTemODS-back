@@ -1,5 +1,3 @@
-// src/server.ts - VERSÃO CORRIGIDA PARA .env.local
-
 import dotenv from "dotenv";
 import path from "path";
 

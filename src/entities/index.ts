@@ -1,24 +1,24 @@
 import Usuario from "./Usuario.entity";
-import Estabelecimento from "./Estabelecimento.entity";
+import Projeto from "./Projeto.entity";
 import Avaliacao from "./Avaliacao.entity";
-import ImagemProduto from "./ImagemProduto.entity";
+import ImagemProjeto from "./ImagemProjeto.entity";
 
 Usuario.hasMany(Avaliacao, { foreignKey: "usuarioId", as: "avaliacoes" });
 Avaliacao.belongsTo(Usuario, { foreignKey: "usuarioId", as: "usuario" });
 
-Estabelecimento.hasMany(Avaliacao, {
-  foreignKey: "estabelecimentoId",
+Projeto.hasMany(Avaliacao, {
+  foreignKey: "projetoId",
   as: "avaliacoes",
 });
-Avaliacao.belongsTo(Estabelecimento, {
-  foreignKey: "estabelecimentoId",
+Avaliacao.belongsTo(Projeto, {
+  foreignKey: "projetoId",
   as: "estabelecimento",
 });
 
-Estabelecimento.hasMany(ImagemProduto, {
+Projeto.hasMany(ImagemProjeto, {
   foreignKey: "estabelecimentoId",
   as: "produtosImg",
 });
-ImagemProduto.belongsTo(Estabelecimento, { foreignKey: "estabelecimentoId" });
+ImagemProjeto.belongsTo(Projeto, { foreignKey: "estabelecimentoId" });
 
-export { Usuario, Estabelecimento, Avaliacao, ImagemProduto };
+export { Usuario, Projeto, Avaliacao, ImagemProjeto };

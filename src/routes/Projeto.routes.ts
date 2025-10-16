@@ -5,17 +5,20 @@ import path from "path";
 import ProjetoController from "../controllers/ProjetoController";
 import { compressImages } from "../middlewares/compression.middleware";
 
+// Define o caminho para a pasta de uploads de forma segura
 const UPLOADS_DIR = path.resolve("uploads");
 
-// Garante que a pasta de uploads exista
+// Garante que a pasta de uploads exista ao iniciar a aplicação
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
 const storage = multer.diskStorage({
+  // Define o destino para ser SEMPRE a pasta 'uploads' raiz
   destination: function (req, file, cb) {
     cb(null, UPLOADS_DIR);
   },
+  // Mantém a lógica para gerar um nome de arquivo único
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
@@ -28,7 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // Limite de 10 MB
+    fileSize: 10 * 1024 * 1024, // Limite de 10 MB para cada arquivo
   },
 });
 
@@ -42,23 +45,25 @@ router.post(
   "/",
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "imagens", maxCount: 5 }, // Alterado de 'produtos' para 'imagens'
+    { name: "produtos", maxCount: 5 },
+    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.cadastrar
 );
 
 router.put(
-  "/:id/solicitar-atualizacao", // Rota agora espera o ID do projeto
+  "/solicitar-atualizacao",
   upload.fields([
     { name: "logo", maxCount: 1 },
-    { name: "imagens", maxCount: 5 }, // Alterado de 'produtos' para 'imagens'
+    { name: "produtos", maxCount: 5 },
+    { name: "ccmei", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.solicitarAtualizacao
 );
 
-router.post("/:id/solicitar-exclusao", ProjetoController.solicitarExclusao);
+router.post("/solicitar-exclusao", ProjetoController.solicitarExclusao);
 router.post("/:id/status", ProjetoController.alterarStatus);
 
 export default router;

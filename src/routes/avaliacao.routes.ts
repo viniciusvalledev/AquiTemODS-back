@@ -6,7 +6,7 @@ import { authMiddleware } from "../middlewares/auth.middleware";
 const router = Router();
 
 router.get(
-  "/estabelecimento/:id",
+  "/Projeto/:id",
   AvaliacaoController.listarPorEstabelecimento
 );
 
