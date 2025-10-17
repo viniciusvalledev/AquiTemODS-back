@@ -83,6 +83,7 @@ export class AdminController {
             html: `
               <h1>Olá, ${projeto.prefeitura}!</h1>
               <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
+              <p>O ID do seu projeto é: <strong>${projeto.projetoId}</strong>.<p><strong>Atenção:</strong> É muito importante que você guarde este número de ID em um local seguro. Ele será <strong>necessário</strong> sempre que você precisar solicitar uma <strong>atualização</strong> ou a <strong>exclusão</strong> do seu projeto em nossa plataforma. Sem ele, não será possível realizar essas ações.</p>
               <p>Agradecemos por fazer parte da comunidade de Saquarema.</p>
               <br>
               <p>Atenciosamente,</p>
@@ -192,7 +193,7 @@ export class AdminController {
             `,
           };
           await projeto.destroy({ transaction });
-          await transaction.commit(); // Commit antes de retornar
+          await transaction.commit();
           return res
             .status(200)
             .json({ message: "Projeto excluído com sucesso." });
