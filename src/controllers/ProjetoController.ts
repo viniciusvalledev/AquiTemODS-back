@@ -37,10 +37,10 @@ class ProjetoController {
         "Um dos campos de texto excedeu o limite de caracteres.";
       if (error.message.includes("'descricao_diferencial'")) {
         friendlyMessage =
-          "O campo 'Descrição Diferencial' excedeu o limite de 130 caracteres.";
+          "O campo 'Descrição Diferencial' excedeu o limite de 255 caracteres.";
       } else if (error.message.includes("'descricao'")) {
         friendlyMessage =
-          "O campo 'Descrição' excedeu o limite de 500 caracteres.";
+          "O campo 'Descrição' excedeu o limite de 3000 caracteres.";
       }
       return res.status(400).json({ message: friendlyMessage });
     }

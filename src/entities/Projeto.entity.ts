@@ -70,11 +70,11 @@ Projeto.init(
       allowNull: true,
     },
     descricao: {
-      type: DataTypes.STRING(500),
+      type: DataTypes.STRING(3000),
       allowNull: true,
     },
     descricaoDiferencial: {
-      type: DataTypes.STRING(130),
+      type: DataTypes.STRING(255),
       allowNull: true,
       field: "descricao_diferencial",
     },
