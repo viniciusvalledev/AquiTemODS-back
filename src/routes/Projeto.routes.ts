@@ -38,8 +38,9 @@ const upload = multer({
 const router = Router();
 
 router.get("/", ProjetoController.listarTodos);
-router.get("/buscar", ProjetoController.buscarPorNome);
+router.get("/buscar", ProjetoController.buscarPorNomeUnico);
 router.get("/categoria/:ods", ProjetoController.buscarPorOds);
+router.get("/nome/:nome", ProjetoController.buscarPorNomeUnico);
 router.get("/:id", ProjetoController.buscarPorId);
 
 router.post(

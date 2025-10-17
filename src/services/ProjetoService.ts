@@ -3,6 +3,7 @@ import sequelize from "../config/database";
 import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
 import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
+import Usuario from "../entities/Usuario.entity"; // Verifique se esta importação está correta e o ficheiro existe
 
 class ProjetoService {
   public async cadastrarProjetoComImagens(dados: any): Promise<Projeto> {
@@ -20,14 +21,13 @@ class ProjetoService {
         odsRelacionadas: dados.odsRelacionadas,
         website: dados.website,
         instagram: dados.instagram,
-        logoUrl: dados.logo, // O 'logo' vem do _moveFilesAndPrepareData
+        logoUrl: dados.logo,
       };
 
       const projeto = await Projeto.create(dadosParaCriacao, {
         transaction,
       });
 
-      // Salva as imagens do projeto, se houver
       if (dados.imagens && dados.imagens.length > 0) {
         const imagensParaSalvar = dados.imagens.map((url: string) => ({
           url,
@@ -42,23 +42,6 @@ class ProjetoService {
       await transaction.rollback();
       throw error;
     }
-  }
-
-  public async buscarPorOds(ods: string): Promise<Projeto[]> {
-    if (!ods) {
-      // Retorna um array vazio se nenhuma ODS for fornecida
-      return [];
-    }
-
-    const projetos = await Projeto.findAll({
-      where: {
-        ods: ods,
-        ativo: true, // Garante que apenas projetos ativos sejam retornados
-      },
-      order: [["nomeProjeto", "ASC"]],
-    });
-
-    return projetos;
   }
 
   public async solicitarAtualizacaoPorId(
@@ -122,6 +105,76 @@ class ProjetoService {
     });
   }
 
+  // --- MÉTODO CORRIGIDO E ADICIONADO ---
+  public async buscarPorNomeUnico(nome: string): Promise<Projeto | null> {
+    // --- LOG 4: INÍCIO DA BUSCA NO SERVICE ---
+
+    try {
+      const projeto = await Projeto.findOne({
+        where: {
+          [Op.and]: [
+            sequelize.where(
+              sequelize.fn("LOWER", sequelize.col("nome_projeto")),
+              sequelize.fn("LOWER", nome)
+            ),
+            { status: "ativo" },
+          ],
+        },
+        // Adicionando um log da query gerada pelo Sequelize
+      });
+
+      // --- LOG 5: RESULTADO DA BUSCA PRINCIPAL ---
+      if (!projeto) {
+        console.log(
+          "[SERVICE] BUSCA PRINCIPAL: Nenhum projeto encontrado com os critérios. Retornando null."
+        );
+        return null;
+      }
+
+      // Carregar associações separadamente
+
+      const imagens = await ImagemProjeto.findAll({
+        where: { projetoId: projeto.projetoId },
+      });
+
+      const avaliacoes = await Avaliacao.findAll({
+        where: { projetoId: projeto.projetoId },
+        include: [
+          {
+            model: Usuario,
+            as: "usuario",
+            attributes: ["nomeCompleto", "usuarioId"],
+          },
+        ],
+      });
+
+      const projetoJSON = projeto.toJSON();
+      (projetoJSON as any).projetoImg = imagens;
+      (projetoJSON as any).avaliacoes = avaliacoes;
+
+      if (avaliacoes && avaliacoes.length > 0) {
+        const somaDasNotas = avaliacoes.reduce(
+          (acc, avaliacao) => acc + avaliacao.nota,
+          0
+        );
+        (projetoJSON as any).media = parseFloat(
+          (somaDasNotas / avaliacoes.length).toFixed(1)
+        );
+      } else {
+        (projetoJSON as any).media = 0;
+      }
+
+      return projetoJSON as Projeto;
+    } catch (error) {
+      // --- LOG DE ERRO NO SERVICE ---
+      console.error(
+        "[SERVICE] Ocorreu um erro durante a busca no banco de dados:",
+        error
+      );
+      throw error; // Lança o erro para o controller lidar com ele
+    }
+  }
+
   public async buscarPorId(id: number): Promise<Projeto | null> {
     return Projeto.findOne({
       where: {
@@ -141,6 +194,20 @@ class ProjetoService {
         },
       ],
     });
+  }
+
+  public async buscarPorOds(ods: string): Promise<Projeto[]> {
+    if (!ods) {
+      return [];
+    }
+    const projetos = await Projeto.findAll({
+      where: {
+        ods: ods,
+        status: StatusProjeto.ATIVO,
+      },
+      order: [["nomeProjeto", "ASC"]],
+    });
+    return projetos;
   }
 
   public async alterarStatusAtivo(

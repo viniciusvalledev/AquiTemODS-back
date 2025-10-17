@@ -208,15 +208,29 @@ class ProjetoController {
     }
   };
 
-  public buscarPorNome = async (
+  public buscarPorNomeUnico = async (
     req: Request,
     res: Response
   ): Promise<Response> => {
     try {
-      const nome = req.query.nome as string;
-      const projetos = await ProjetoService.buscarPorNome(nome); // Variável renomeada
-      return res.status(200).json(projetos);
+      const nome = decodeURIComponent(req.params.nome);
+
+      const projeto = await ProjetoService.buscarPorNomeUnico(nome);
+
+      if (!projeto) {
+        console.log(
+          "[CONTROLLER] O serviço retornou null. Projeto não encontrado."
+        );
+        // Mantemos o status 404 aqui, embora o frontend trate null
+        return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+
+      return res.status(200).json(projeto);
     } catch (error: any) {
+      console.error(
+        "[CONTROLLER] Ocorreu um erro inesperado ao buscar por nome:",
+        error
+      );
       return this._handleError(error, res);
     }
   };
@@ -227,6 +241,9 @@ class ProjetoController {
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "O ID do projeto é inválido." });
+      }
       const projeto = await ProjetoService.buscarPorId(id); // Variável renomeada
 
       if (!projeto) {
