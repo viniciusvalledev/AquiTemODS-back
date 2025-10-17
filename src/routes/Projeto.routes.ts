@@ -39,6 +39,7 @@ const router = Router();
 
 router.get("/", ProjetoController.listarTodos);
 router.get("/buscar", ProjetoController.buscarPorNome);
+router.get("/categoria/:ods", ProjetoController.buscarPorOds);
 router.get("/:id", ProjetoController.buscarPorId);
 
 router.post(

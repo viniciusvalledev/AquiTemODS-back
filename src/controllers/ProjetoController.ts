@@ -27,7 +27,7 @@ class ProjetoController {
     if (error.message.includes("E-mail de contato já cadastrado no sistema.")) {
       return res.status(400).json({ message: error.message });
     }
-    
+
     // Tratamento de erro de tamanho de dados
     if (
       error.name === "SequelizeDatabaseError" &&
@@ -44,19 +44,19 @@ class ProjetoController {
       }
       return res.status(400).json({ message: friendlyMessage });
     }
-    
+
     // Tratamento de erro de unicidade (agora focado no email de contato)
     if (error.name === "SequelizeUniqueConstraintError") {
-      return res
-        .status(400)
-        .json({ message: "O e-mail de contato informado já está cadastrado no sistema." });
+      return res.status(400).json({
+        message: "O e-mail de contato informado já está cadastrado no sistema.",
+      });
     }
 
     // Tratamento de projeto não encontrado
     if (error.message.includes("não encontrado")) {
       return res.status(404).json({ message: error.message });
     }
-    
+
     console.error("ERRO NÃO TRATADO:", error);
     return res
       .status(500)
@@ -100,7 +100,8 @@ class ProjetoController {
     // REMOVIDO: const ccmeiPath = await moveFile(arquivos["ccmei"]?.[0]);
 
     const imagensPaths: string[] = [];
-    if (arquivos["imagens"]) { // Renomeado "produtos" para "imagens"
+    if (arquivos["imagens"]) {
+      // Renomeado "produtos" para "imagens"
       for (const file of arquivos["imagens"]) {
         const newPath = await moveFile(file);
         if (newPath) imagensPaths.push(newPath);
@@ -118,10 +119,10 @@ class ProjetoController {
   public cadastrar = async (req: Request, res: Response): Promise<Response> => {
     try {
       const dadosCompletos = await this._moveFilesAndPrepareData(req);
-      const novoProjeto =
-        await ProjetoService.cadastrarProjetoComImagens( // Chama o novo service
-          dadosCompletos
-        );
+      const novoProjeto = await ProjetoService.cadastrarProjetoComImagens(
+        // Chama o novo service
+        dadosCompletos
+      );
       return res.status(201).json(novoProjeto);
     } catch (error: any) {
       await this._deleteUploadedFilesOnFailure(req);
@@ -137,7 +138,8 @@ class ProjetoController {
       const id = parseInt(req.params.id); // Pega o ID dos parâmetros de rota
       if (isNaN(id)) {
         return res.status(400).json({
-          message: "O ID do projeto é obrigatório para solicitar uma atualização.",
+          message:
+            "O ID do projeto é obrigatório para solicitar uma atualização.",
         });
       }
 
@@ -156,11 +158,11 @@ class ProjetoController {
         nomeProjeto: projetoExistente.nomeProjeto,
       });
 
-      const projeto =
-        await ProjetoService.solicitarAtualizacaoPorId( // Chama o novo método do service
-          id,
-          dadosCompletos
-        );
+      const projeto = await ProjetoService.solicitarAtualizacaoPorId(
+        // Chama o novo método do service
+        id,
+        dadosCompletos
+      );
 
       return res.status(200).json({
         message: "Solicitação de atualização enviada para análise.",
@@ -185,7 +187,7 @@ class ProjetoController {
       }
 
       // REMOVIDO: A passagem de 'motivo' para o service (o service anterior foi simplificado)
-      await ProjetoService.solicitarExclusaoPorId(id); 
+      await ProjetoService.solicitarExclusaoPorId(id);
       return res
         .status(200)
         .json({ message: "Solicitação de exclusão enviada para análise." });
@@ -229,8 +231,7 @@ class ProjetoController {
 
       if (!projeto) {
         return res.status(404).json({
-          message:
-            "Projeto não encontrado.", // Mensagem ajustada
+          message: "Projeto não encontrado.", // Mensagem ajustada
         });
       }
 
@@ -239,16 +240,12 @@ class ProjetoController {
 
       // Calcula a média das avaliações
       let media = 0;
-      if (
-        projetoJSON.avaliacoes &&
-        projetoJSON.avaliacoes.length > 0
-      ) {
+      if (projetoJSON.avaliacoes && projetoJSON.avaliacoes.length > 0) {
         const somaDasNotas = projetoJSON.avaliacoes.reduce(
           (acc: number, avaliacao: { nota: number }) => acc + avaliacao.nota,
           0
         );
-        const mediaCalculada =
-          somaDasNotas / projetoJSON.avaliacoes.length;
+        const mediaCalculada = somaDasNotas / projetoJSON.avaliacoes.length;
         media = parseFloat(mediaCalculada.toFixed(1)); // Garante uma casa decimal
       }
 
@@ -259,6 +256,20 @@ class ProjetoController {
       };
 
       return res.status(200).json(dadosParaFront);
+    } catch (error: any) {
+      return this._handleError(error, res);
+    }
+  };
+
+  public buscarPorOds = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      // O nome da ODS vem da URL, então precisamos decodificá-lo
+      const ods = decodeURIComponent(req.params.ods);
+      const projetos = await ProjetoService.buscarPorOds(ods);
+      return res.status(200).json(projetos);
     } catch (error: any) {
       return this._handleError(error, res);
     }
@@ -277,7 +288,8 @@ class ProjetoController {
             "O corpo da requisição deve conter a chave 'ativo' com um valor booleano (true/false).",
         });
       }
-      const projeto = await ProjetoService.alterarStatusAtivo( // Variável renomeada
+      const projeto = await ProjetoService.alterarStatusAtivo(
+        // Variável renomeada
         id,
         ativo
       );

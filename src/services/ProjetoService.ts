@@ -3,8 +3,6 @@ import sequelize from "../config/database";
 import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
 import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
-import path from "path";
-import fs from "fs/promises";
 
 class ProjetoService {
   public async cadastrarProjetoComImagens(dados: any): Promise<Projeto> {
@@ -44,6 +42,23 @@ class ProjetoService {
       await transaction.rollback();
       throw error;
     }
+  }
+
+  public async buscarPorOds(ods: string): Promise<Projeto[]> {
+    if (!ods) {
+      // Retorna um array vazio se nenhuma ODS for fornecida
+      return [];
+    }
+
+    const projetos = await Projeto.findAll({
+      where: {
+        ods: ods,
+        ativo: true, // Garante que apenas projetos ativos sejam retornados
+      },
+      order: [["nomeProjeto", "ASC"]],
+    });
+
+    return projetos;
   }
 
   public async solicitarAtualizacaoPorId(
