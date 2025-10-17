@@ -84,7 +84,7 @@ export class AdminController {
               <h1>Olá, ${projeto.prefeitura}!</h1>
               <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
               <p>O ID do seu projeto é: <strong>${projeto.projetoId}</strong>.<p><strong>Atenção:</strong> É muito importante que você guarde este número de ID em um local seguro. Ele será <strong>necessário</strong> sempre que você precisar solicitar uma <strong>atualização</strong> ou a <strong>exclusão</strong> do seu projeto em nossa plataforma. Sem ele, não será possível realizar essas ações.</p>
-              <p>Agradecemos por fazer parte da comunidade de Saquarema.</p>
+              <p>Agradecemos por fazer parte do Aqui Tem ODS.</p>
               <br>
               <p>Atenciosamente,</p>
               <p><strong>Equipe Aqui Tem ODS.</strong></p>
@@ -173,6 +173,7 @@ export class AdminController {
               <h1>Olá, ${projeto.prefeitura}!</h1>
               <p>A sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
               <p>As novas informações já estão visíveis para todos na plataforma.</p>
+              <p>Relembrando, o ID do seu projeto é: <strong${projeto.projetoId}</strong>.</p>
               <br>
               <p>Atenciosamente,</p>
               <p><strong>Equipe Aqui Tem ODS</strong></p>

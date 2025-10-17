@@ -11,6 +11,7 @@ class ProjetoService {
     try {
       const dadosParaCriacao = {
         nomeProjeto: dados.nomeProjeto,
+        linkProjeto: dados.linkProjeto,
         ods: dados.ods,
         prefeitura: dados.prefeitura,
         secretaria: dados.secretaria,

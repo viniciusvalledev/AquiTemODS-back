@@ -15,6 +15,7 @@ class Projeto extends Model {
   public prefeitura!: string;
   public secretaria!: string;
   public nomeProjeto!: string;
+  public linkProjeto!: string;
   public emailContato!: string;
   public endereco!: string;
   public descricao!: string;
@@ -41,8 +42,8 @@ Projeto.init(
       allowNull: true,
     },
     prefeitura: {
-        type: DataTypes.STRING(18),
-        allowNull: true,
+      type: DataTypes.STRING(18),
+      allowNull: true,
     },
     secretaria: {
       type: DataTypes.STRING(255),
@@ -53,6 +54,11 @@ Projeto.init(
       type: DataTypes.STRING,
       allowNull: true,
       field: "nome_projeto",
+    },
+    linkProjeto: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "link_projeto",
     },
     emailContato: {
       type: DataTypes.STRING,
@@ -73,9 +79,9 @@ Projeto.init(
       field: "descricao_diferencial",
     },
     odsRelacionadas: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        field: "ods_relacionadas"
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "ods_relacionadas",
     },
     website: {
       type: DataTypes.STRING,
