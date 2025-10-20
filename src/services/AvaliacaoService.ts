@@ -29,7 +29,7 @@ class AvaliacaoService {
     const avaliacaoExistente = await Avaliacao.findOne({
       where: {
         usuarioId: usuarioLogadoId,
-        ProjetoId: projetoId,
+        projetoId: projetoId,
       },
     });
 
