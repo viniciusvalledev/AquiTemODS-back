@@ -26,7 +26,7 @@ class EmailService {
     const message = {
       from: `"AquiTemODS" <${process.env.MAIL_USER}>`,
       to: to,
-      subject: "Confirmação de Cadastro - Meidesaqua",
+      subject: "Confirmação de Cadastro - AquiTemODS",
       html: `Obrigado por se cadastrar! Por favor, clique no link abaixo para ativar sua conta:<br><br>
                    <a href="${confirmationUrl}">${confirmationUrl}</a><br><br>
                    Se você não se cadastrou em nosso site, por favor ignore este e-mail.`,
