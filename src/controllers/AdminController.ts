@@ -6,6 +6,7 @@ import sequelize from "../config/database";
 import fs from "fs/promises";
 import path from "path";
 import EmailService from "../utils/EmailService";
+import ImagemProduto from "../entities/ImagemProjeto.entity";
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
@@ -122,8 +123,8 @@ export class AdminController {
             }
 
             if (
-              dadosRecebidos.produtos &&
-              Array.isArray(dadosRecebidos.produtos)
+              dadosRecebidos.imagens &&
+              Array.isArray(dadosRecebidos.imagens)
             ) {
               const imagensAntigas = await ImagemProjeto.findAll({
                 where: { projetoId: projeto.projetoId },
@@ -147,14 +148,14 @@ export class AdminController {
                 transaction,
               });
 
-              const novasImagens = dadosRecebidos.produtos.map(
+              const novasImagens = dadosRecebidos.imagens.map(
                 (url: string) => ({
                   url,
                   projetoId: projeto.projetoId,
                 })
               );
               await ImagemProjeto.bulkCreate(novasImagens, { transaction });
-              delete dadosParaAtualizar.produtos;
+              delete dadosParaAtualizar.imagens;
             }
 
             dadosParaAtualizar.dados_atualizacao = null;
