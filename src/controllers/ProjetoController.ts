@@ -179,15 +179,39 @@ class ProjetoController {
     res: Response
   ): Promise<Response> => {
     try {
-      const id = parseInt(req.params.id); // Pega o ID dos parâmetros de rota
+      const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({
           message: "O ID do projeto é obrigatório para solicitar uma exclusão.",
         });
       }
 
-      // REMOVIDO: A passagem de 'motivo' para o service (o service anterior foi simplificado)
-      await ProjetoService.solicitarExclusaoPorId(id);
+      const dadosDoFormulario = req.body;
+
+      const { prefeitura, nomeProjeto, secretaria, emailContato, motivo } =
+        dadosDoFormulario;
+      if (
+        !prefeitura ||
+        !nomeProjeto ||
+        !secretaria ||
+        !emailContato ||
+        !motivo
+      ) {
+        return res.status(400).json({
+          message:
+            "Todos os campos são obrigatórios para solicitar a exclusão.",
+        });
+      }
+      const projetoExistente = await Projeto.findByPk(id);
+      if (!projetoExistente) {
+        return res.status(404).json({
+          message:
+            "Projeto não encontrado para exclusão, verifique o ID e tente novamente.",
+        });
+      }
+
+      await ProjetoService.solicitarExclusaoPorId(id, dadosDoFormulario);
+
       return res
         .status(200)
         .json({ message: "Solicitação de exclusão enviada para análise." });

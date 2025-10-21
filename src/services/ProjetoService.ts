@@ -62,7 +62,10 @@ class ProjetoService {
     return projeto;
   }
 
-  public async solicitarExclusaoPorId(id: number): Promise<void> {
+  public async solicitarExclusaoPorId(
+    id: number,
+    dadosExclusao: any
+  ): Promise<void> {
     const projeto = await Projeto.findByPk(id);
 
     if (!projeto) {
@@ -70,6 +73,9 @@ class ProjetoService {
     }
 
     projeto.status = StatusProjeto.PENDENTE_EXCLUSAO;
+
+    projeto.dados_atualizacao = dadosExclusao;
+
     await projeto.save();
   }
 
