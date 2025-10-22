@@ -28,6 +28,13 @@ class ProjetoController {
       return res.status(400).json({ message: error.message });
     }
 
+    if (error.message.includes("Já existe um projeto cadastrado com este nome.")) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (error.message.includes("O nome do projeto é um campo obrigatório.")) {
+      return res.status(400).json({ message: error.message });
+    }
+
     // Tratamento de erro de tamanho de dados
     if (
       error.name === "SequelizeDatabaseError" &&

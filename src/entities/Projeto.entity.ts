@@ -52,7 +52,7 @@ Projeto.init(
     },
     nomeProjeto: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
       field: "nome_projeto",
     },
     linkProjeto: {

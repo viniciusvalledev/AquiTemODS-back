@@ -25,6 +25,27 @@ class ProjetoService {
         logoUrl: dados.logo,
       };
 
+      const nomeProjeto = dados.nomeProjeto;
+      if (!nomeProjeto) {
+        throw new Error("O nome do projeto é um campo obrigatório.");
+      }
+
+      const projetoExistente = await Projeto.findOne({
+        where: {
+          [Op.and]: [
+            sequelize.where(
+              sequelize.fn("LOWER", sequelize.col("nome_projeto")),
+              sequelize.fn("LOWER", nomeProjeto)
+            ),
+          ],
+        },
+        transaction,
+      });
+
+      if (projetoExistente) {
+        throw new Error("Já existe um projeto cadastrado com este nome.");
+      }
+      
       const projeto = await Projeto.create(dadosParaCriacao, {
         transaction,
       });
