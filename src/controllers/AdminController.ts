@@ -1,12 +1,16 @@
 import { Request, Response } from "express";
-import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
+import Projeto, { StatusProjeto } from "../entities/Projeto.entity"; // Assumindo que Projeto.entity.ts existe
 import * as jwt from "jsonwebtoken";
-import ImagemProjeto from "../entities/ImagemProjeto.entity";
+import ImagemProjeto from "../entities/ImagemProjeto.entity"; // Verifique se o caminho está correto
 import sequelize from "../config/database";
 import fs from "fs/promises";
 import path from "path";
 import EmailService from "../utils/EmailService";
-import ImagemProduto from "../entities/ImagemProjeto.entity";
+// Removido import duplicado de ImagemProduto (já importado como ImagemProjeto)
+// import ImagemProduto from "../entities/ImagemProjeto.entity"; 
+
+// Assumindo que você terá uma interface similar para Projeto
+// import { ICreateUpdateProjetoRequest } from "../interfaces/requests"; 
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
@@ -33,7 +37,7 @@ export class AdminController {
     try {
       const includeOptions = {
         model: ImagemProjeto,
-        as: "projetoImg", // <-- ALIAS CORRIGIDO PARA 'projetoImg'
+        as: "projetoImg", // Alias correto para a associação Projeto <-> ImagemProjeto
         attributes: ["url"],
       };
 
@@ -64,8 +68,13 @@ export class AdminController {
     const transaction = await sequelize.transaction();
 
     try {
+       // *** VARIÁVEL DE RESPOSTA INICIALIZADA ***
+      let responseMessage = "Solicitação aprovada com sucesso.";
+
       const projeto = await Projeto.findByPk(id, {
         transaction,
+         // Inclui ImagemProjeto para lidar com a atualização de imagens
+        include: [{ model: ImagemProjeto, as: 'projetoImg' }] 
       });
       if (!projeto) {
         await transaction.rollback();
@@ -81,8 +90,8 @@ export class AdminController {
 
           emailInfo = {
             subject: "Seu cadastro no Aqui Tem ODS foi Aprovado!",
-            html: `
-              <h1>Olá, ${projeto.prefeitura}!</h1>
+             html: `
+              <h1>Olá, ${projeto.prefeitura}!</h1> 
               <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p>
               <p>O ID do seu projeto é: <strong>${projeto.projetoId}</strong>.<p><strong>Atenção:</strong> É muito importante que você guarde este número de ID em um local seguro. Ele será <strong>necessário</strong> sempre que você precisar solicitar uma <strong>atualização</strong> ou a <strong>exclusão</strong> do seu projeto em nossa plataforma. Sem ele, não será possível realizar essas ações.</p>
               <p>Agradecemos por fazer parte do Aqui Tem ODS.</p>
@@ -96,97 +105,118 @@ export class AdminController {
         case StatusProjeto.PENDENTE_ATUALIZACAO:
           if (projeto.dados_atualizacao) {
             const dadosRecebidos = projeto.dados_atualizacao as any;
-            const dadosParaAtualizar: { [key: string]: any } = {
-              ...dadosRecebidos,
-            };
+            
+             // *** CORREÇÃO: Inicializa vazio para atualização seletiva ***
+            const dadosParaAtualizar: Partial<Projeto> & { [key: string]: any } = {};
 
+            // *** CORREÇÃO: Define campos permitidos (ajuste conforme seu modelo Projeto) ***
+            const camposPermitidos: (keyof Projeto | string)[] = [ // Use `keyof Projeto` se tiver a definição
+                'prefeitura', 'secretaria', 'nomeProjeto', 'responsavel', 
+                'emailContato', 'telefoneContato', 'descricao', 'objetivo', 
+                'justificativa', 'publicoAlvo', 'impacto', 'localizacao', 
+                'website', 'instagram', 'facebook', 'youtube', 'tagsInvisiveis',
+                'odsId' // Exemplo, adicione outros campos do seu modelo Projeto
+                // logoUrl é tratado abaixo
+            ];
+
+             // *** CORREÇÃO: Copia apenas os campos permitidos e existentes ***
+            for (const key of camposPermitidos) {
+              // Verifica se a chave existe em dadosRecebidos e não é nula/undefined
+              if (dadosRecebidos.hasOwnProperty(key) && dadosRecebidos[key] != null) {
+                 // Atribui o valor ao objeto de atualização
+                 (dadosParaAtualizar as any)[key] = dadosRecebidos[key];
+              }
+            }
+
+            // Lógica para LOGO (mantida e ajustada)
             if (dadosRecebidos.logo) {
               const logoAntigaUrl = projeto.logoUrl;
               if (logoAntigaUrl) {
                 try {
-                  const filePath = path.join(
-                    __dirname,
-                    "..",
-                    "..",
-                    logoAntigaUrl
-                  );
+                  const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
                   await fs.unlink(filePath);
                 } catch (err) {
-                  console.error(
-                    `AVISO: Falha ao deletar arquivo de logo antigo: ${logoAntigaUrl}`,
-                    err
-                  );
+                  console.error(`AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`, err);
                 }
               }
               dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
-              delete dadosParaAtualizar.logo;
             }
 
+            // Lógica para IMAGENS (mantida e ajustada para ImagemProjeto)
             if (
-              dadosRecebidos.imagens &&
-              Array.isArray(dadosRecebidos.imagens)
+              dadosRecebidos.imagens && // O campo em dados_atualizacao chama-se 'imagens'
+              Array.isArray(dadosRecebidos.imagens) &&
+              dadosRecebidos.imagens.length > 0
             ) {
+              // Busca imagens antigas DENTRO da transação
               const imagensAntigas = await ImagemProjeto.findAll({
-                where: { projetoId: projeto.projetoId },
+                where: { projetoId: projeto.projetoId }, // Usa projetoId
                 transaction,
               });
 
+              // Deleta arquivos antigos
               for (const imagem of imagensAntigas) {
                 try {
                   const filePath = path.join(__dirname, "..", "..", imagem.url);
                   await fs.unlink(filePath);
                 } catch (err) {
-                  console.error(
-                    `AVISO: Falha ao deletar arquivo antigo: ${imagem.url}`,
-                    err
-                  );
+                  console.error(`AVISO: Falha ao deletar imagem antiga: ${imagem.url}`, err);
                 }
               }
 
+               // Deleta referências antigas no banco (DENTRO da transação)
               await ImagemProjeto.destroy({
-                where: { projetoId: projeto.projetoId },
+                where: { projetoId: projeto.projetoId }, // Usa projetoId
                 transaction,
               });
 
+              // Cria novas referências no banco (DENTRO da transação)
               const novasImagens = dadosRecebidos.imagens.map(
                 (url: string) => ({
                   url,
-                  projetoId: projeto.projetoId,
+                  projetoId: projeto.projetoId, // Usa projetoId
                 })
               );
               await ImagemProjeto.bulkCreate(novasImagens, { transaction });
-              delete dadosParaAtualizar.imagens;
             }
 
+            // Atualiza status e limpa dados temporários
             dadosParaAtualizar.dados_atualizacao = null;
             dadosParaAtualizar.status = StatusProjeto.ATIVO;
+            dadosParaAtualizar.ativo = true; // Garante ativação
 
+             // Aplica mudanças no banco com dados filtrados
             await projeto.update(dadosParaAtualizar, { transaction });
+
           } else {
+             // Caso não haja dados, apenas reativa
             projeto.dados_atualizacao = null;
             projeto.status = StatusProjeto.ATIVO;
+            projeto.ativo = true;
             await projeto.save({ transaction });
           }
+          
+          // Prepara email de confirmação de atualização
           emailInfo = {
-            subject:
-              "Sua solicitação de atualização no Aqui Tem ODS foi Aprovada!",
-            html: `
+            subject: "Sua solicitação de atualização no Aqui Tem ODS foi Aprovada!",
+             html: `
               <h1>Olá, ${projeto.prefeitura}!</h1>
               <p>A sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> foi aprovada.</p>
               <p>As novas informações já estão visíveis para todos na plataforma.</p>
-              <p>Relembrando, o ID do seu projeto é: <strong${projeto.projetoId}</strong>.</p>
+              <p>Relembrando, o ID do seu projeto é: <strong>${projeto.projetoId}</strong>.</p> 
               <br>
               <p>Atenciosamente,</p>
               <p><strong>Equipe Aqui Tem ODS</strong></p>
             `,
           };
-          break;
+          break; // Fim do case PENDENTE_ATUALIZACAO
 
         case StatusProjeto.PENDENTE_EXCLUSAO:
+           // *** CORREÇÃO LÓGICA EXCLUSÃO ***
           emailInfo = {
             subject: "Seu projeto foi removido da plataforma Aqui Tem ODS",
-            html: `
-              <h1>Olá, ${projeto.prefeitura}.</h1>
+             html: `
+              <h1>Olá, ${projeto.prefeitura}.</h1> 
               <p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> da nossa plataforma foi concluída com sucesso.</p>
               <p>Lamentamos a sua partida e esperamos poder colaborar com você novamente no futuro.</p>
               <br>
@@ -194,19 +224,26 @@ export class AdminController {
               <p><strong>Equipe Aqui Tem ODS</strong></p>
             `,
           };
+          // TODO: Adicionar lógica para deletar arquivos (logo, imagens) associados ANTES do destroy.
+          // Ex: if (projeto.logoUrl) await fs.unlink(path.join(__dirname, "..", "..", projeto.logoUrl)).catch(e => console.error(e));
+          // const imagensExcluir = await ImagemProjeto.findAll({ where: { projetoId: projeto.projetoId }, transaction });
+          // for (const img of imagensExcluir) { await fs.unlink(path.join(__dirname, "..", "..", img.url)).catch(e => console.error(e)); }
+          // await ImagemProjeto.destroy({ where: { projetoId: projeto.projetoId }, transaction });
+          
           await projeto.destroy({ transaction });
-          await transaction.commit();
-          return res
-            .status(200)
-            .json({ message: "Projeto excluído com sucesso." });
-      }
+          responseMessage = "Projeto excluído com sucesso.";
+          // REMOVIDO commit e return daqui, adicionado break
+          break; 
+      } // Fim do switch
 
+       // *** CORREÇÃO LÓGICA EXCLUSÃO: Commit fora do case ***
       await transaction.commit();
 
-      if (emailInfo) {
+       // Envio de e-mail após o commit
+      if (emailInfo && projeto.emailContato) { // Verifica email antes de enviar
         try {
           await EmailService.sendGenericEmail({
-            to: projeto.emailContato,
+            to: projeto.emailContato, // Usa o campo de email correto do Projeto
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
@@ -219,41 +256,111 @@ export class AdminController {
             error
           );
         }
+      } else if (emailInfo) {
+           console.warn(`Tentativa de enviar email para projeto ID ${projeto.projetoId} sem emailContato definido.`);
       }
 
+      // *** RESPOSTA FINAL USA A VARIÁVEL ***
       return res
         .status(200)
-        .json({ message: "Solicitação aprovada com sucesso." });
+        .json({ message: responseMessage }); // Usa a variável de mensagem
+
     } catch (error) {
       await transaction.rollback();
       console.error("ERRO DURANTE A APROVAÇÃO:", error);
+       // TODO: Considerar deletar arquivos movidos/criados antes do erro no rollback, se aplicável.
       return res
         .status(500)
         .json({ message: "Erro ao aprovar a solicitação." });
     }
   }
 
-  static async rejectRequest(req: Request, res: Response) {
+   static async rejectRequest(req: Request, res: Response) {
     const { id } = req.params;
+    const transaction = await sequelize.transaction(); // Usa transação
     try {
-      const projeto = await Projeto.findByPk(id);
+      const projeto = await Projeto.findByPk(id, { transaction });
       if (!projeto) {
+        await transaction.rollback();
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
+      let responseMessage = "Solicitação rejeitada com sucesso.";
+      let emailInfo: { subject: string; html: string } | null = null;
+      const emailParaNotificar = projeto.emailContato; // Guarda antes de modificar
+
       if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {
-        await projeto.destroy();
+
+         // TODO: Adicionar lógica para deletar arquivos (logo, imagens) associados a ESTE projeto
+         // antes de destruir o registro no banco.
+         // Ex: if (projeto.logoUrl) await fs.unlink(...).catch(e => console.error(e));
+         // const imagens = await ImagemProjeto.findAll({ where: { projetoId: projeto.projetoId }, transaction });
+         // for (const img of imagens) { await fs.unlink(...).catch(e => console.error(e)); }
+         // await ImagemProjeto.destroy({ where: { projetoId: projeto.projetoId }, transaction });
+
+        await projeto.destroy({ transaction });
+        responseMessage = "Cadastro de projeto rejeitado e removido.";
+        
+         emailInfo = {
+            subject: "Seu cadastro no Aqui Tem ODS foi Rejeitado",
+            html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Lamentamos informar que o cadastro do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovado.</p><p>Recomendamos verificar os dados fornecidos ou entrar em contato conosco para mais informações.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`
+          };
+
+
+      } else if (projeto.status === StatusProjeto.PENDENTE_ATUALIZACAO || projeto.status === StatusProjeto.PENDENTE_EXCLUSAO) {
+         
+         // TODO: Adicionar lógica para deletar os arquivos temporários que estavam em `dados_atualizacao`, se houver.
+         // Ex: const dadosRejeitados = projeto.dados_atualizacao as any;
+         // if (dadosRejeitados?.logo) await fs.unlink(...).catch(e => console.error(e));
+         // if (dadosRejeitados?.imagens) { for (const url of dadosRejeitados.imagens) { await fs.unlink(...).catch(e => console.error(e)); } }
+
+          const statusAnterior = projeto.status; // Guarda para o email
+          projeto.status = StatusProjeto.ATIVO;
+          projeto.dados_atualizacao = null;
+          await projeto.save({ transaction }); // Salva dentro da transação
+
+           // Email para atualização/exclusão rejeitada
+          if (statusAnterior === StatusProjeto.PENDENTE_ATUALIZACAO) {
+            emailInfo = {
+              subject: "Sua solicitação de atualização no Aqui Tem ODS foi Rejeitada",
+              html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Informamos que a sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p><p>Os dados anteriores foram mantidos. Entre em contato conosco se precisar de esclarecimentos.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`
+            };
+          } else { // PENDENTE_EXCLUSAO
+             emailInfo = {
+              subject: "Sua solicitação de exclusão no Aqui Tem ODS foi Rejeitada",
+              html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p><p>Seu projeto continua ativo na plataforma. Entre em contato conosco se precisar de esclarecimentos.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`
+            };
+          }
+
       } else {
-        projeto.status = StatusProjeto.ATIVO;
-        projeto.dados_atualizacao = null;
+        await transaction.rollback();
+        return res.status(400).json({ message: "O projeto não está em um estado pendente para rejeição." });
       }
 
-      await projeto.save();
+      await transaction.commit(); // Comita as alterações
+
+       // Envio do e-mail de rejeição (fora da transação)
+      if (emailInfo && emailParaNotificar) {
+        try {
+          await EmailService.sendGenericEmail({
+            to: emailParaNotificar,
+            subject: emailInfo.subject,
+            html: emailInfo.html,
+          });
+          console.log(`Email de rejeição enviado com sucesso para ${emailParaNotificar}`);
+        } catch (error) {
+          console.error(`Falha ao enviar email de rejeição para ${emailParaNotificar}:`, error);
+        }
+      }
+
       return res
         .status(200)
-        .json({ message: "Solicitação rejeitada com sucesso." });
+        .json({ message: responseMessage });
+        
     } catch (error) {
-      console.error(error);
+      await transaction.rollback(); // Rollback em caso de erro inesperado
+      console.error("Erro ao rejeitar a solicitação:", error);
+      // TODO: Considerar deletar arquivos temporários aqui também, se aplicável
       return res
         .status(500)
         .json({ message: "Erro ao rejeitar a solicitação." });
