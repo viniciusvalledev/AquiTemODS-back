@@ -7,7 +7,16 @@ const router = Router();
 router.post("/login", AdminController.login);
 
 router.get("/pending", adminAuthMiddleware, AdminController.getPending);
-router.post("/approve/:id", adminAuthMiddleware, AdminController.approveRequest);
+router.post(
+  "/approve/:id",
+  adminAuthMiddleware,
+  AdminController.approveRequest
+);
+router.post(
+  "/edit-and-approve/:id",
+  adminAuthMiddleware,
+  AdminController.editAndApproveRequest
+);
 router.post("/reject/:id", adminAuthMiddleware, AdminController.rejectRequest);
 
 export default router;
