@@ -12,11 +12,24 @@ router.post(
   adminAuthMiddleware,
   AdminController.approveRequest
 );
+
 router.post(
   "/edit-and-approve/:id",
   adminAuthMiddleware,
   AdminController.editAndApproveRequest
 );
 router.post("/reject/:id", adminAuthMiddleware, AdminController.rejectRequest);
+
+//VER TODOS NO ADM E PODER EDITAR
+router.get(
+  "/projetos-ativos",
+  adminAuthMiddleware,
+  AdminController.getAllActiveProjetos
+);
+router.patch(
+  "/projeto/:id",
+  adminAuthMiddleware,
+  AdminController.adminUpdateProjeto
+);
 
 export default router;

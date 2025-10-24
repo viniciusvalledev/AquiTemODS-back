@@ -6,11 +6,7 @@ import sequelize from "../config/database";
 import fs from "fs/promises";
 import path from "path";
 import EmailService from "../utils/EmailService";
-// Removido import duplicado de ImagemProduto (já importado como ImagemProjeto)
-// import ImagemProduto from "../entities/ImagemProjeto.entity";
-
-// Assumindo que você terá uma interface similar para Projeto
-// import { ICreateUpdateProjetoRequest } from "../interfaces/requests";
+import ProjetoService from "../services/ProjetoService";
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
@@ -451,6 +447,51 @@ export class AdminController {
       return res
         .status(500)
         .json({ message: "Erro ao editar e aprovar a solicitação." });
+    }
+  }
+
+  static async getAllActiveProjetos(req: Request, res: Response) {
+    try {
+      // Reutiliza a lógica que já existe no seu ProjetoService
+      const projetos = await ProjetoService.listarTodos();
+      return res.json(projetos);
+    } catch (error) {
+      console.error(error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao buscar projetos ativos." });
+    }
+  }
+
+  static async adminUpdateProjeto(req: Request, res: Response) {
+    const { id } = req.params;
+    const adminEditedData = req.body;
+    const transaction = await sequelize.transaction();
+
+    try {
+      const projeto = await Projeto.findByPk(id, { transaction });
+
+      if (!projeto) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+
+      // Remove campos que não devem ser atualizados diretamente
+      delete adminEditedData.projetoId;
+      delete adminEditedData.status;
+      delete adminEditedData.ativo;
+      delete adminEditedData.dados_atualizacao;
+
+      await projeto.update(adminEditedData, { transaction });
+      await transaction.commit();
+
+      return res
+        .status(200)
+        .json({ message: "Projeto atualizado com sucesso." });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("ERRO DURANTE A ATUALIZAÇÃO ADMIN:", error);
+      return res.status(500).json({ message: "Erro ao atualizar o projeto." });
     }
   }
 
