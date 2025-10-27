@@ -7,6 +7,7 @@ const router = Router();
 router.post("/login", AdminController.login);
 
 router.get("/pending", adminAuthMiddleware, AdminController.getPending);
+
 router.post(
   "/approve/:id",
   adminAuthMiddleware,
@@ -30,6 +31,11 @@ router.patch(
   "/projeto/:id",
   adminAuthMiddleware,
   AdminController.adminUpdateProjeto
+);
+router.delete(
+  "/projeto/:id",
+  adminAuthMiddleware,
+  AdminController.adminDeleteProjeto
 );
 
 export default router;

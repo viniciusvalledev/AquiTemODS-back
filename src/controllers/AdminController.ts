@@ -495,6 +495,35 @@ export class AdminController {
     }
   }
 
+  static adminDeleteProjeto = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID do projeto inválido." });
+      }
+
+      const projeto = await Projeto.findByPk(id);
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+
+      // Deleta o projeto do banco de dados
+      await projeto.destroy();
+
+      // Retorna 204 No Content (sucesso, sem corpo de resposta)
+      // Isso é o correto para um DELETE e não causará o erro de JSON
+      return res.status(204).send();
+    } catch (error: any) {
+      console.error("Falha ao excluir projeto (admin):", error);
+      return res
+        .status(500)
+        .json({ message: "Erro interno ao excluir projeto." });
+    }
+  };
+
   static async rejectRequest(req: Request, res: Response) {
     const { id } = req.params;
     const transaction = await sequelize.transaction(); // Usa transação
