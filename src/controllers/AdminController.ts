@@ -112,8 +112,10 @@ export class AdminController {
               // Use `keyof Projeto` se tiver a definição
               "prefeitura",
               "secretaria",
-              "nomeProjeto",
               "responsavel",
+              "nomeProjeto",
+              "descricaoDiferencial",
+              "responsavelProjeto",
               "emailContato",
               "telefoneContato",
               "descricao",
@@ -127,8 +129,8 @@ export class AdminController {
               "facebook",
               "youtube",
               "tagsInvisiveis",
-              "odsId", // Exemplo, adicione outros campos do seu modelo Projeto
-              // logoUrl é tratado abaixo
+              "odsRelacionadas",
+              "odsId",
             ];
 
             // *** CORREÇÃO: Copia apenas os campos permitidos e existentes ***

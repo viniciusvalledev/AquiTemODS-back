@@ -15,6 +15,7 @@ class ProjetoService {
         ods: dados.ods,
         prefeitura: dados.prefeitura,
         secretaria: dados.secretaria,
+        responsavelProjeto: dados.responsavelProjeto,
         emailContato: dados.emailContato,
         endereco: dados.endereco,
         descricao: dados.descricao,
@@ -45,7 +46,7 @@ class ProjetoService {
       if (projetoExistente) {
         throw new Error("Já existe um projeto cadastrado com este nome.");
       }
-      
+
       const projeto = await Projeto.create(dadosParaCriacao, {
         transaction,
       });
