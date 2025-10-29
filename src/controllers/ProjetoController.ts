@@ -28,7 +28,9 @@ class ProjetoController {
       return res.status(400).json({ message: error.message });
     }
 
-    if (error.message.includes("Já existe um projeto cadastrado com este nome.")) {
+    if (
+      error.message.includes("Já existe um projeto cadastrado com este nome.")
+    ) {
       return res.status(400).json({ message: error.message });
     }
     if (error.message.includes("O nome do projeto é um campo obrigatório.")) {
@@ -44,10 +46,10 @@ class ProjetoController {
         "Um dos campos de texto excedeu o limite de caracteres.";
       if (error.message.includes("'descricao_diferencial'")) {
         friendlyMessage =
-          "O campo 'Descrição Diferencial' excedeu o limite de 255 caracteres.";
+          "O campo 'Briefing' excedeu o limite de 150 caracteres.";
       } else if (error.message.includes("'descricao'")) {
         friendlyMessage =
-          "O campo 'Descrição' excedeu o limite de 3000 caracteres.";
+          "O campo 'Descrição' excedeu o limite de 5000 caracteres.";
       }
       return res.status(400).json({ message: friendlyMessage });
     }
