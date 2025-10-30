@@ -7,6 +7,8 @@ import fs from "fs/promises";
 import path from "path";
 import EmailService from "../utils/EmailService";
 import ProjetoService from "../services/ProjetoService";
+import Avaliacao from "../entities/Avaliacao.entity";
+import Usuario from "../entities/Usuario.entity";
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
@@ -620,6 +622,64 @@ export class AdminController {
       return res
         .status(500)
         .json({ message: "Erro ao rejeitar a solicitação." });
+    }
+  }
+
+  static async getAvaliacoesByProjeto(req: Request, res: Response) {
+    // <--- NOME MUDOU
+    try {
+      const { projetoId } = req.params; // <--- PEGA O ID DA URL
+
+      // 1. Busca o projeto para termos o nome e para validar
+      const projeto = await Projeto.findByPk(projetoId, {
+        attributes: ["projetoId", "nomeProjeto", "ods"],
+      });
+
+      if (!projeto) {
+        return res.status(404).json({ message: "Projeto não encontrado." });
+      }
+
+      // 2. Busca as avaliações DAQUELE projeto
+      const avaliacoes = await Avaliacao.findAll({
+        where: { projetoId: projetoId }, // <--- FILTRO AQUI
+        include: [
+          {
+            model: Usuario,
+            as: "usuario",
+            attributes: ["usuarioId", "nomeCompleto", "email"],
+          },
+          // Não precisamos mais incluir o Projeto, pois já buscamos
+        ],
+        order: [["avaliacoesId", "DESC"]],
+      });
+
+      // 3. Retorna o projeto e suas avaliações
+      return res.json({ projeto, avaliacoes });
+    } catch (error) {
+      console.error("Erro ao buscar avaliações por projeto (admin):", error);
+      return res.status(500).json({ message: "Erro ao buscar avaliações." });
+    }
+  }
+
+  static async adminDeleteAvaliacao(req: Request, res: Response) {
+    const { id } = req.params;
+
+    try {
+      const avaliacao = await Avaliacao.findByPk(id);
+
+      if (!avaliacao) {
+        return res.status(404).json({ message: "Avaliação não encontrada." });
+      }
+
+      // Admin não precisa de verificação de propriedade, apenas exclui
+      await avaliacao.destroy();
+
+      return res
+        .status(200)
+        .json({ message: "Avaliação excluída com sucesso." });
+    } catch (error) {
+      console.error("Erro ao excluir avaliação (admin):", error);
+      return res.status(500).json({ message: "Erro ao excluir a avaliação." });
     }
   }
 }

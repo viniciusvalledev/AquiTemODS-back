@@ -38,4 +38,17 @@ router.delete(
   AdminController.adminDeleteProjeto
 );
 
+router.get(
+  "/avaliacoes/projeto/:projetoId", // <--- MUDANÇA AQUI
+  adminAuthMiddleware,
+  AdminController.getAvaliacoesByProjeto // <--- MUDANÇA AQUI
+);
+
+// Rota para admin excluir uma avaliação
+router.delete(
+  "/avaliacoes/:id",
+  adminAuthMiddleware,
+  AdminController.adminDeleteAvaliacao
+);
+
 export default router;
