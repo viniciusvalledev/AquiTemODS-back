@@ -641,16 +641,32 @@ export class AdminController {
 
       // 2. Busca as avaliações DAQUELE projeto
       const avaliacoes = await Avaliacao.findAll({
-        where: { projetoId: projetoId }, // <--- FILTRO AQUI
+        where: { projetoId: projetoId, parent_id: null }, // <--- FILTRO AQUI
         include: [
           {
             model: Usuario,
             as: "usuario",
             attributes: ["usuarioId", "nomeCompleto", "email"],
           },
-          // Não precisamos mais incluir o Projeto, pois já buscamos
+          {
+            // 2. Incluir as respostas
+            model: Avaliacao,
+            as: "respostas",
+            required: false,
+            include: [
+              {
+                // 3. E o usuário da resposta
+                model: Usuario,
+                as: "usuario",
+                attributes: ["usuarioId", "nomeCompleto", "email"],
+              },
+            ],
+          },
         ],
-        order: [["avaliacoesId", "DESC"]],
+        order: [
+          ["avaliacoesId", "DESC"], // Pais mais novos primeiro
+          [{ model: Avaliacao, as: "respostas" }, "avaliacoesId", "ASC"], // Respostas em ordem cronológica
+        ],
       });
 
       // 3. Retorna o projeto e suas avaliações

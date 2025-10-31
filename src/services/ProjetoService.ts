@@ -167,13 +167,34 @@ class ProjetoService {
       });
 
       const avaliacoes = await Avaliacao.findAll({
-        where: { projetoId: projeto.projetoId },
+        where: {
+          projetoId: projeto.projetoId,
+          parent_id: null, // <-- BUSCA SÓ OS COMENTÁRIOS-PAI
+        },
         include: [
           {
             model: Usuario,
             as: "usuario",
             attributes: ["nomeCompleto", "usuarioId"],
           },
+          {
+            // <-- ADICIONADO: Inclui as respostas
+            model: Avaliacao,
+            as: "respostas",
+            required: false,
+            include: [
+              {
+                // E o usuário da resposta
+                model: Usuario,
+                as: "usuario",
+                attributes: ["nomeCompleto", "usuarioId"],
+              },
+            ],
+          },
+        ],
+        order: [
+          ["avaliacoesId", "DESC"], // Pais mais novos primeiro
+          [{ model: Avaliacao, as: "respostas" }, "avaliacoesId", "ASC"], // Respostas em ordem cronológica
         ],
       });
 
@@ -183,7 +204,7 @@ class ProjetoService {
 
       if (avaliacoes && avaliacoes.length > 0) {
         const somaDasNotas = avaliacoes.reduce(
-          (acc, avaliacao) => acc + avaliacao.nota,
+          (acc, avaliacao) => acc + (avaliacao.nota || 0),
           0
         );
         (projetoJSON as any).media = parseFloat(
@@ -192,7 +213,6 @@ class ProjetoService {
       } else {
         (projetoJSON as any).media = 0;
       }
-
       return projetoJSON as Projeto;
     } catch (error) {
       // --- LOG DE ERRO NO SERVICE ---

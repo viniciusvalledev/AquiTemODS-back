@@ -4,11 +4,10 @@ import { containsEmoji } from "../utils/ValidationEmoji";
 
 class AvaliacaoService {
   public async submeterAvaliacao(dadosAvaliacao: any, usuarioLogadoId: number) {
-    const { nota, comentario, projetoId } = dadosAvaliacao;
+    // 1. Obter 'parent_id' junto com os outros dados
+    const { nota, comentario, projetoId, parent_id } = dadosAvaliacao;
 
-    if (nota < 1 || nota > 5) {
-      throw new Error("A nota da avaliação deve estar entre 1 e 5.");
-    }
+    // 2. Validações que se aplicam a todos (comentários E respostas)
     if (!projetoId) {
       throw new Error("O ID do projeto é obrigatório.");
     }
@@ -21,27 +20,54 @@ class AvaliacaoService {
 
     const projeto = await Projeto.findByPk(projetoId);
     if (!projeto) {
-      throw new Error(
-        `Projeto não encontrado com o ID: ${projetoId}`
-      );
+      throw new Error(`Projeto não encontrado com o ID: ${projetoId}`);
     }
 
-    const avaliacaoExistente = await Avaliacao.findOne({
-      where: {
-        usuarioId: usuarioLogadoId,
-        projetoId: projetoId,
-      },
-    });
+    let notaFinal: number | null = nota;
 
-    if (avaliacaoExistente) {
-      throw new Error("Este utilizador já avaliou este Projeto.");
+    // 3. Lógica condicional
+    if (parent_id) {
+      // É UMA RESPOSTA
+      notaFinal = null; // Respostas NUNCA têm nota
+
+      // Verifica se o comentário pai existe
+      const parentAvaliacao = await Avaliacao.findByPk(parent_id);
+      if (!parentAvaliacao) {
+        throw new Error("Comentário pai não encontrado.");
+      }
+
+      if (parentAvaliacao.parent_id !== null) {
+        throw new Error("Não é possível responder a uma resposta.");
+      }
+    } else {
+      // É UM COMENTÁRIO PRINCIPAL
+
+      // 4. Mover a validação da nota PARA DENTRO do 'else'
+      if (nota < 1 || nota > 5) {
+        throw new Error("A nota da avaliação deve estar entre 1 e 5.");
+      }
+
+      // Verifica se o usuário já avaliou este projeto (apenas para comentários principais)
+      const avaliacaoExistente = await Avaliacao.findOne({
+        where: {
+          usuarioId: usuarioLogadoId,
+          projetoId: projetoId,
+          parent_id: null, // <-- Importante
+        },
+      });
+
+      if (avaliacaoExistente) {
+        throw new Error("Este utilizador já avaliou este Projeto.");
+      }
     }
 
+    // 5. Criar a avaliação/resposta
     return Avaliacao.create({
-      nota,
+      nota: notaFinal, // Será 'null' para respostas
       comentario,
       projetoId,
       usuarioId: usuarioLogadoId,
+      parent_id: parent_id || null, // Salva o ID do pai
     });
   }
 
@@ -91,7 +117,10 @@ class AvaliacaoService {
 
   public async listarPorProjetoDTO(projetoId: number) {
     return Avaliacao.findAll({
-      where: { projetoId },
+      where: {
+        projetoId,
+        parent_id: null, // Buscar APENAS comentários principais
+      },
       include: [
         {
           model: Usuario,
@@ -107,6 +136,28 @@ class AvaliacaoService {
             ],
           },
         },
+        {
+          // Inclui as respostas aninhadas
+          model: Avaliacao,
+          as: "respostas",
+          required: false,
+          include: [
+            {
+              // Inclui o usuário da resposta
+              model: Usuario,
+              as: "usuario",
+              attributes: {
+                exclude: [
+                  /*... (seus excludes)*/
+                ],
+              },
+            },
+          ],
+        },
+      ],
+      order: [
+        ["avaliacoesId", "DESC"],
+        [{ model: Avaliacao, as: "respostas" }, "avaliacoesId", "ASC"],
       ],
     });
   }
