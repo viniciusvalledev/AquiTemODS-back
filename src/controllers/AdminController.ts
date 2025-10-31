@@ -530,6 +530,7 @@ export class AdminController {
 
   static async rejectRequest(req: Request, res: Response) {
     const { id } = req.params;
+    const { motivoRejeicao } = req.body;
     const transaction = await sequelize.transaction(); // Usa transação
     try {
       const projeto = await Projeto.findByPk(id, { transaction });
@@ -541,6 +542,9 @@ export class AdminController {
       let responseMessage = "Solicitação rejeitada com sucesso.";
       let emailInfo: { subject: string; html: string } | null = null;
       const emailParaNotificar = projeto.emailContato; // Guarda antes de modificar
+      const motivoHtml = motivoRejeicao
+        ? `<p><strong>Motivo da Rejeição:</strong> ${motivoRejeicao}</p>`
+        : "<p>Para mais detalhes, entre em contato conosco.</p>";
 
       if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {
         // TODO: Adicionar lógica para deletar arquivos (logo, imagens) associados a ESTE projeto
@@ -555,17 +559,17 @@ export class AdminController {
 
         emailInfo = {
           subject: "Seu cadastro no Aqui Tem ODS foi Rejeitado",
-          html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Lamentamos informar que o cadastro do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovado.</p><p>Recomendamos verificar os dados fornecidos ou entrar em contato conosco para mais informações.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`,
+          html: `<h1>Olá, ${projeto.prefeitura}.</h1>
+                 <p>Lamentamos informar que o cadastro do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovado.</p>
+                 ${motivoHtml}
+                 <br>
+                 <p>Atenciosamente,</p>
+                 <p><strong>Equipe Aqui Tem ODS</strong></p>`,
         };
       } else if (
         projeto.status === StatusProjeto.PENDENTE_ATUALIZACAO ||
         projeto.status === StatusProjeto.PENDENTE_EXCLUSAO
       ) {
-        // TODO: Adicionar lógica para deletar os arquivos temporários que estavam em `dados_atualizacao`, se houver.
-        // Ex: const dadosRejeitados = projeto.dados_atualizacao as any;
-        // if (dadosRejeitados?.logo) await fs.unlink(...).catch(e => console.error(e));
-        // if (dadosRejeitados?.imagens) { for (const url of dadosRejeitados.imagens) { await fs.unlink(...).catch(e => console.error(e)); } }
-
         const statusAnterior = projeto.status; // Guarda para o email
         projeto.status = StatusProjeto.ATIVO;
         projeto.dados_atualizacao = null;
@@ -576,14 +580,25 @@ export class AdminController {
           emailInfo = {
             subject:
               "Sua solicitação de atualização no Aqui Tem ODS foi Rejeitada",
-            html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Informamos que a sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p><p>Os dados anteriores foram mantidos. Entre em contato conosco se precisar de esclarecimentos.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`,
+            html: `<h1>Olá, ${projeto.prefeitura}.</h1>
+                   <p>Informamos que a sua solicitação para atualizar os dados do projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p>
+                   <p>Os dados anteriores foram mantidos.</p>
+                   ${motivoHtml}
+                   <br>
+                   <p>Atenciosamente,</p>
+                   <p><strong>Equipe Aqui Tem ODS</strong></p>`,
           };
         } else {
-          // PENDENTE_EXCLUSAO
           emailInfo = {
             subject:
               "Sua solicitação de exclusão no Aqui Tem ODS foi Rejeitada",
-            html: `<h1>Olá, ${projeto.prefeitura}.</h1><p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p><p>Seu projeto continua ativo na plataforma. Entre em contato conosco se precisar de esclarecimentos.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS</strong></p>`,
+            html: `<h1>Olá, ${projeto.prefeitura}.</h1>
+                   <p>Informamos que a sua solicitação para remover o projeto <strong>${projeto.nomeProjeto}</strong> não foi aprovada.</p>
+                   <p>Seu projeto continua ativo na plataforma.</p>
+                   ${motivoHtml}
+                   <br>
+                   <p>Atenciosamente,</p>
+                   <p><strong>Equipe Aqui Tem ODS</strong></p>`,
           };
         }
       } else {
