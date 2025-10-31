@@ -1,6 +1,7 @@
 import { Avaliacao, Projeto, Usuario } from "../entities";
 import ProfanityFilter from "../utils/ProfanityFilter";
 import { containsEmoji } from "../utils/ValidationEmoji";
+import EmailService from "../utils/EmailService";
 
 class AvaliacaoService {
   public async submeterAvaliacao(dadosAvaliacao: any, usuarioLogadoId: number) {
@@ -18,19 +19,18 @@ class AvaliacaoService {
       throw new Error("O comentário não pode conter emojis.");
     }
 
-    const projeto = await Projeto.findByPk(projetoId);
+    const projeto = await Projeto.findByPk(projetoId); // <-- 2. MANTER a busca do projeto
     if (!projeto) {
       throw new Error(`Projeto não encontrado com o ID: ${projetoId}`);
     }
 
     let notaFinal: number | null = nota;
 
-    // 3. Lógica condicional
+    // 3. Lógica condicional (IDÊNTICA AO SEU CÓDIGO ORIGINAL)
     if (parent_id) {
       // É UMA RESPOSTA
       notaFinal = null; // Respostas NUNCA têm nota
 
-      // Verifica se o comentário pai existe
       const parentAvaliacao = await Avaliacao.findByPk(parent_id);
       if (!parentAvaliacao) {
         throw new Error("Comentário pai não encontrado.");
@@ -42,12 +42,11 @@ class AvaliacaoService {
     } else {
       // É UM COMENTÁRIO PRINCIPAL
 
-      // 4. Mover a validação da nota PARA DENTRO do 'else'
       if (nota < 1 || nota > 5) {
         throw new Error("A nota da avaliação deve estar entre 1 e 5.");
       }
 
-      // Verifica se o usuário já avaliou este projeto (apenas para comentários principais)
+      // Verifica se o usuário já avaliou este projeto (IDÊNTICO AO SEU CÓDIGO ORIGINAL)
       const avaliacaoExistente = await Avaliacao.findOne({
         where: {
           usuarioId: usuarioLogadoId,
@@ -61,14 +60,56 @@ class AvaliacaoService {
       }
     }
 
-    // 5. Criar a avaliação/resposta
-    return Avaliacao.create({
+    const novaAvaliacao = await Avaliacao.create({
       nota: notaFinal, // Será 'null' para respostas
       comentario,
       projetoId,
       usuarioId: usuarioLogadoId,
-      parent_id: parent_id || null, // Salva o ID do pai
+      parent_id: parent_id || null,
     });
+
+    // --- FUNCIONALIDADE DE E-MAIL PARA COMENTÁRIOS ---
+
+    try {
+      const usuario = await Usuario.findByPk(usuarioLogadoId);
+
+      if (projeto.emailContato && usuario) {
+        const eUmaResposta = parent_id
+          ? "uma nova resposta"
+          : "um novo comentário";
+        const notaTexto = notaFinal ? `(Nota: ${notaFinal}/5)` : "";
+
+        const subject = `[AquiTemODS] Novo Comentário no seu projeto: ${projeto.nomeProjeto}`;
+        const html = `
+          <p>Olá, ${
+            projeto.responsavelProjeto || "Responsável pelo Projeto"
+          },</p>
+          <p>Seu projeto "<strong>${
+            projeto.nomeProjeto
+          }</strong>" recebeu ${eUmaResposta} na plataforma AquiTemODS.</p>
+          <br>
+          <p><strong>Usuário:</strong> ${usuario.username}</p>
+          <p><strong>Comentário ${notaTexto}:</strong></p>
+          <blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 5px; font-style: italic;">
+            "${comentario}"
+          </blockquote>
+          <br>
+          <p>Acesse a plataforma para ver mais detalhes e responder.</p>
+          <p>Atenciosamente,<br>Equipe AquiTemODS</p>
+        `;
+
+        await EmailService.sendGenericEmail({
+          to: projeto.emailContato,
+          subject: subject,
+          html: html,
+        });
+      }
+    } catch (emailError: any) {
+      console.error(
+        "Falha ao enviar e-mail de notificação de avaliação:",
+        emailError.message
+      );
+    }
   }
 
   public async atualizarAvaliacao(
