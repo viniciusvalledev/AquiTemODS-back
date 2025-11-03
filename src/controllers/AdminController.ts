@@ -10,19 +10,44 @@ import ProjetoService from "../services/ProjetoService";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
 
-const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Senha@Forte123";
-const JWT_SECRET =
-  process.env.ADMIN_JWT_SECRET || "seu-segredo-admin-super-secreto";
+const ADMIN_USER = process.env.ADMIN_USER;
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+
+if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
+  console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+  console.error("ERRO CRÍTICO: Variáveis de ambiente do Admin não definidas.");
+
+  console.error(
+    "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET"
+  );
+
+  console.error(
+    "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor."
+  );
+
+  console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+  throw new Error(
+    "Credenciais de administrador ou segredo JWT não configurados."
+  );
+}
 
 export class AdminController {
   static async login(req: Request, res: Response) {
     const { username, password } = req.body;
 
     if (username === ADMIN_USER && password === ADMIN_PASSWORD) {
-      const token = jwt.sign({ username, role: "admin" }, JWT_SECRET, {
-        expiresIn: "8h",
-      });
+      const token = jwt.sign(
+        { username, role: "admin" },
+        JWT_SECRET as string,
+        {
+          expiresIn: "8h",
+        }
+      );
       return res.json({ success: true, token });
     }
 
