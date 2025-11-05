@@ -19,6 +19,7 @@ class ProjetoService {
         emailContato: dados.emailContato,
         endereco: dados.endereco,
         descricao: dados.descricao,
+        venceuPspe: dados.venceuPspe === "true",
         descricaoDiferencial: dados.descricaoDiferencial,
         odsRelacionadas: dados.odsRelacionadas,
         website: dados.website,

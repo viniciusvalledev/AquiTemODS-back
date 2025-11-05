@@ -20,6 +20,7 @@ class Projeto extends Model {
   public emailContato!: string;
   public endereco!: string;
   public descricao!: string;
+  public venceuPspe!: boolean;
   public descricaoDiferencial!: string;
   public odsRelacionadas!: string;
   public website!: string;
@@ -78,6 +79,12 @@ Projeto.init(
     descricao: {
       type: DataTypes.STRING(3000),
       allowNull: true,
+    },
+    venceuPspe: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "venceu_pspe",
     },
     descricaoDiferencial: {
       type: DataTypes.STRING(255),
