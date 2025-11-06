@@ -158,6 +158,7 @@ export class AdminController {
               "tagsInvisiveis",
               "odsRelacionadas",
               "odsId",
+              "venceuPspe",
             ];
 
             // *** CORREÇÃO: Copia apenas os campos permitidos e existentes ***
