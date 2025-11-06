@@ -256,6 +256,14 @@ class ProjetoService {
         status: StatusProjeto.ATIVO,
       },
       order: [["nomeProjeto", "ASC"]],
+
+      include: [
+        {
+          model: ImagemProjeto,
+          as: "projetoImg",
+          attributes: ["url"],
+        },
+      ],
     });
     return projetos;
   }
