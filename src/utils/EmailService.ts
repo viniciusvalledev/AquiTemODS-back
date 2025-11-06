@@ -22,7 +22,7 @@ class EmailService {
   }
 
   public async sendConfirmationEmail(to: string, token: string): Promise<void> {
-    const confirmationUrl = `http://localhost:3000/confirmar-conta?token=${token}`;
+    const confirmationUrl = `https://aquitemods.saquarema.rj.gov.br/confirmar-conta?token=${token}`;
     const message = {
       from: `"AquiTemODS" <${process.env.MAIL_USER}>`,
       to: to,
@@ -38,7 +38,7 @@ class EmailService {
     to: string,
     token: string
   ): Promise<void> {
-    const resetUrl = `http://localhost:3000/redefinir-senha?token=${token}`;
+    const resetUrl = `https://aquitemods.saquarema.rj.gov.br/redefinir-senha?token=${token}`;
     const message = {
       from: `"AquiTemODS" <${process.env.MAIL_USER}>`,
       to: to,
@@ -55,7 +55,7 @@ class EmailService {
     to: string,
     token: string
   ): Promise<void> {
-    const confirmationUrl = `http://localhost:3000/confirmar-novo-email?token=${token}`;
+    const confirmationUrl = `https://aquitemods.saquarema.rj.gov.br/confirmar-novo-email?token=${token}`;
     const message = {
       from: `"AquiTemODS" <${process.env.MAIL_USER}>`,
       to: to,

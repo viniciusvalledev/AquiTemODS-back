@@ -7,7 +7,7 @@ console.log("Servindo uploads em:", path.resolve(__dirname, "..", "uploads"));
 import app from "./app";
 import sequelize from "./config/database";
 
-const PORT = process.env.PORT || 3306;
+const PORT = process.env.PORT || 3303;
 
 sequelize
   .sync()
