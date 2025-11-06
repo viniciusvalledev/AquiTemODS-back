@@ -129,22 +129,15 @@ export class AdminController {
           if (projeto.dados_atualizacao) {
             const dadosRecebidos = projeto.dados_atualizacao as any;
 
-            // *** CORREÇÃO: Inicializa vazio para atualização seletiva ***
+            //  Inicializa vazio para atualização seletiva ***
             const dadosParaAtualizar: Partial<Projeto> & {
               [key: string]: any;
             } = {};
 
-            // *** CORREÇÃO: Define campos permitidos (ajuste conforme seu modelo Projeto) ***
+            //  Define campos permitidos (ajuste conforme seu modelo Projeto) ***
             const camposPermitidos: (keyof Projeto | string)[] = [
               // Use `keyof Projeto` se tiver a definição
-              "prefeitura",
-              "secretaria",
-              "responsavel",
-              "nomeProjeto",
               "descricaoDiferencial",
-              "responsavelProjeto",
-              "emailContato",
-              "telefoneContato",
               "descricao",
               "objetivo",
               "justificativa",
@@ -161,7 +154,7 @@ export class AdminController {
               "venceuPspe",
             ];
 
-            // *** CORREÇÃO: Copia apenas os campos permitidos e existentes ***
+            //  Copia apenas os campos permitidos e existentes ***
             for (const key of camposPermitidos) {
               // Verifica se a chave existe em dadosRecebidos e não é nula/undefined
               if (
