@@ -25,6 +25,8 @@ class ProjetoService {
         website: dados.website,
         instagram: dados.instagram,
         logoUrl: dados.logo,
+        apoio_planejamento: dados.apoio_planejamento,
+        escala: dados.escala,
       };
 
       const nomeProjeto = dados.nomeProjeto;

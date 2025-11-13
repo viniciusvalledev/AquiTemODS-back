@@ -29,6 +29,8 @@ class Projeto extends Model {
   public ativo!: boolean;
   public status!: StatusProjeto;
   public dados_atualizacao!: object | null;
+  public apoio_planejamento!: string;
+  public escala!: string;
 }
 
 Projeto.init(
@@ -120,6 +122,17 @@ Projeto.init(
     dados_atualizacao: {
       type: DataTypes.JSON,
       allowNull: true,
+    },
+    apoio_planejamento: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+      field: "apoio_planejamento",
+    },
+    escala: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: "escala",
     },
   },
   {
