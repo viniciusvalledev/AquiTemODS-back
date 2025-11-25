@@ -10,10 +10,35 @@ import ProjetoService from "../services/ProjetoService";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
 
+const sanitize = (name: string) =>
+  (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+
+const deleteProjectFolder = async (ods: string, nomeProjeto: string) => {
+  try {
+    const safeOds = sanitize(ods || "geral");
+    const safeNomeProjeto = sanitize(nomeProjeto || "projeto_sem_nome");
+
+    const projectDir = path.resolve(
+      __dirname,
+      "..",
+      "..",
+      "uploads",
+      safeOds,
+      safeNomeProjeto
+    );
+
+    await fs.access(projectDir);
+    await fs.rm(projectDir, { recursive: true, force: true });
+    console.log(`[SYSTEM] Pasta do projeto excluída: ${projectDir}`);
+  } catch (error: any) {
+    if (error.code !== "ENOENT") {
+      console.error(`[SYSTEM] Erro ao excluir pasta do projeto:`, error);
+    }
+  }
+};
+
 const ADMIN_USER = process.env.ADMIN_USER;
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
 const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
@@ -275,6 +300,8 @@ export class AdminController {
               <p><strong>Equipe AquitemODS</strong></p>
             `,
           };
+
+          await deleteProjectFolder(projeto.ods, projeto.nomeProjeto);
 
           await projeto.destroy({ transaction });
           responseMessage = "Projeto excluído com sucesso.";
@@ -667,11 +694,10 @@ export class AdminController {
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
+      await deleteProjectFolder(projeto.ods, projeto.nomeProjeto);
       // Deleta o projeto do banco de dados
       await projeto.destroy();
 
-      // Retorna 204 No Content (sucesso, sem corpo de resposta)
-      // Isso é o correto para um DELETE e não causará o erro de JSON
       return res.status(204).send();
     } catch (error: any) {
       console.error("Falha ao excluir projeto (admin):", error);
@@ -700,12 +726,7 @@ export class AdminController {
         : "<p>Para mais detalhes, entre em contato conosco.</p>";
 
       if (projeto.status === StatusProjeto.PENDENTE_APROVACAO) {
-        // TODO: Adicionar lógica para deletar arquivos (logo, imagens) associados a ESTE projeto
-        // antes de destruir o registro no banco.
-        // Ex: if (projeto.logoUrl) await fs.unlink(...).catch(e => console.error(e));
-        // const imagens = await ImagemProjeto.findAll({ where: { projetoId: projeto.projetoId }, transaction });
-        // for (const img of imagens) { await fs.unlink(...).catch(e => console.error(e)); }
-        // await ImagemProjeto.destroy({ where: { projetoId: projeto.projetoId }, transaction });
+        await deleteProjectFolder(projeto.ods, projeto.nomeProjeto);
 
         await projeto.destroy({ transaction });
         responseMessage = "Cadastro de projeto rejeitado e removido.";
@@ -817,13 +838,11 @@ export class AdminController {
             attributes: ["usuarioId", "nomeCompleto", "email"],
           },
           {
-            // 2. Incluir as respostas
             model: Avaliacao,
             as: "respostas",
             required: false,
             include: [
               {
-                // 3. E o usuário da resposta
                 model: Usuario,
                 as: "usuario",
                 attributes: ["usuarioId", "nomeCompleto", "email"],
@@ -832,12 +851,11 @@ export class AdminController {
           },
         ],
         order: [
-          ["avaliacoesId", "DESC"], // Pais mais novos primeiro
-          [{ model: Avaliacao, as: "respostas" }, "avaliacoesId", "ASC"], // Respostas em ordem cronológica
+          ["avaliacoesId", "DESC"],
+          [{ model: Avaliacao, as: "respostas" }, "avaliacoesId", "ASC"],
         ],
       });
 
-      // 3. Retorna o projeto e suas avaliações
       return res.json({ projeto, avaliacoes });
     } catch (error) {
       console.error("Erro ao buscar avaliações por projeto (admin):", error);
@@ -855,7 +873,6 @@ export class AdminController {
         return res.status(404).json({ message: "Avaliação não encontrada." });
       }
 
-      // Admin não precisa de verificação de propriedade, apenas exclui
       await avaliacao.destroy();
 
       return res
