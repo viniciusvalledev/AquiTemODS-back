@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import ProjetoService from "../services/ProjetoService"; // Importa o novo serviço
+import ProjetoService from "../services/ProjetoService";
 import fs from "fs/promises";
 import path from "path";
-import Projeto from "../entities/Projeto.entity"; // Importa a entidade Projeto
+import Projeto from "../entities/Projeto.entity";
 
 class ProjetoController {
   private _deleteUploadedFilesOnFailure = async (req: Request) => {
@@ -74,23 +74,23 @@ class ProjetoController {
 
   private _moveFilesAndPrepareData = async (
     req: Request,
-    existingInfo?: { ods: string; nomeProjeto: string } // Adaptação: categoria/nomeFantasia -> ods/nomeProjeto
+    existingInfo?: { ods: string; nomeProjeto: string }
   ): Promise<any> => {
     const dadosDoFormulario = req.body;
     const arquivos = req.files as {
       [fieldname: string]: Express.Multer.File[];
     };
 
-    const ods = existingInfo?.ods || dadosDoFormulario.ods; // Usa ODS para o caminho
+    const ods = existingInfo?.ods || dadosDoFormulario.ods;
     const nomeProjeto =
-      existingInfo?.nomeProjeto || dadosDoFormulario.nomeProjeto; // Usa nomeProjeto para o caminho
+      existingInfo?.nomeProjeto || dadosDoFormulario.nomeProjeto;
 
     const sanitize = (name: string) =>
       (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
     const safeOds = sanitize(ods || "geral");
     const safeNomeProjeto = sanitize(nomeProjeto || "projeto_sem_nome");
 
-    const targetDir = path.resolve("uploads", safeOds, safeNomeProjeto); // Cria pasta baseada em ODS e Nome do Projeto
+    const targetDir = path.resolve("uploads", safeOds, safeNomeProjeto);
     await fs.mkdir(targetDir, { recursive: true });
 
     const moveFile = async (
@@ -106,7 +106,7 @@ class ProjetoController {
     };
 
     const logoPath = await moveFile(arquivos["logo"]?.[0]);
-    // REMOVIDO: const ccmeiPath = await moveFile(arquivos["ccmei"]?.[0]);
+    const oficioPath = await moveFile(arquivos["oficio"]?.[0]);
 
     const imagensPaths: string[] = [];
     if (arquivos["imagens"]) {
@@ -120,8 +120,8 @@ class ProjetoController {
     return {
       ...dadosDoFormulario,
       ...(logoPath && { logo: logoPath }),
-      ...(imagensPaths.length > 0 && { imagens: imagensPaths }), // Renomeado "produtos" para "imagens"
-      // REMOVIDO: ...(ccmeiPath && { ccmei: ccmeiPath }),
+      ...(oficioPath && { oficio: oficioPath }),
+      ...(imagensPaths.length > 0 && { imagens: imagensPaths }),
     };
   };
 
@@ -234,7 +234,7 @@ class ProjetoController {
     res: Response
   ): Promise<Response> => {
     try {
-      const projetos = await ProjetoService.listarTodos(); // Variável renomeada
+      const projetos = await ProjetoService.listarTodos();
       return res.status(200).json(projetos);
     } catch (error: any) {
       return this._handleError(error, res);
@@ -254,7 +254,6 @@ class ProjetoController {
         console.log(
           "[CONTROLLER] O serviço retornou null. Projeto não encontrado."
         );
-        // Mantemos o status 404 aqui, embora o frontend trate null
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
@@ -277,11 +276,11 @@ class ProjetoController {
       if (isNaN(id)) {
         return res.status(400).json({ message: "O ID do projeto é inválido." });
       }
-      const projeto = await ProjetoService.buscarPorId(id); // Variável renomeada
+      const projeto = await ProjetoService.buscarPorId(id);
 
       if (!projeto) {
         return res.status(404).json({
-          message: "Projeto não encontrado.", // Mensagem ajustada
+          message: "Projeto não encontrado.",
         });
       }
 

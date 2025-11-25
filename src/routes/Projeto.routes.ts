@@ -48,6 +48,7 @@ router.post(
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "imagens", maxCount: 5 },
+    { name: "oficio", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.cadastrar
@@ -58,6 +59,7 @@ router.put(
   upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "imagens", maxCount: 5 },
+    { name: "oficio", maxCount: 1 },
   ]),
   compressImages,
   ProjetoController.solicitarAtualizacao

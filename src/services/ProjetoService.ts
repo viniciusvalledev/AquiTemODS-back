@@ -25,6 +25,7 @@ class ProjetoService {
         website: dados.website,
         instagram: dados.instagram,
         logoUrl: dados.logo,
+        oficioUrl: dados.oficio,
         apoio_planejamento: dados.apoio_planejamento,
         escala: dados.escala,
       };

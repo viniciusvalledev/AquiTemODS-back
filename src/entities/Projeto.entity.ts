@@ -26,6 +26,7 @@ class Projeto extends Model {
   public website!: string;
   public instagram!: string;
   public logoUrl!: string;
+  public oficioUrl!: string;
   public ativo!: boolean;
   public status!: StatusProjeto;
   public dados_atualizacao!: object | null;
@@ -107,6 +108,10 @@ Projeto.init(
       allowNull: true,
     },
     logoUrl: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    oficioUrl: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
