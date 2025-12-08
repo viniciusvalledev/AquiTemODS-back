@@ -50,5 +50,11 @@ router.delete(
   adminAuthMiddleware,
   AdminController.adminDeleteAvaliacao
 );
+router.get(
+  "/exportar-projetos",
+  adminAuthMiddleware,
+  AdminController.exportActiveProjetos
+);
+
 
 export default router;

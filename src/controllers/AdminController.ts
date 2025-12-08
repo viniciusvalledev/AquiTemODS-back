@@ -883,4 +883,96 @@ export class AdminController {
       return res.status(500).json({ message: "Erro ao excluir a avaliação." });
     }
   }
+  static async exportActiveProjetos(req: Request, res: Response) {
+    try {
+      const projetos = await ProjetoService.listarTodos();
+
+      if (!projetos || projetos.length === 0) {
+        return res.status(404).json({ message: "Nenhum projeto ativo para exportar." });
+      }
+
+      // Cabeçalhos do CSV
+      const headers = [
+        "ID",
+        "Nome do Projeto",
+        "ODS",
+        "Prefeitura",
+        "Secretaria",
+        "Responsável",
+        "Email Contato",
+        "Telefone/Endereço",
+        "Venceu PSPE",
+        "Status",
+        "Link Projeto",
+        "Website",
+        "Instagram",
+        "Descrição",
+        "Diferencial (Briefing)",
+        "ODS Relacionadas",
+        "Apoio Planejamento",
+        "Escala",
+        "Data de Criação"
+      ];
+
+      // --- MUDANÇA 1: Usando PONTO E VÍRGULA (;) para o Excel brasileiro ---
+      const SEPARATOR = ";";
+
+      // Função auxiliar para escapar campos CSV
+      const escapeCsvField = (field: any) => {
+        if (field === null || field === undefined) return '""';
+        
+        // Converte para string e remove quebras de linha que poderiam quebrar o CSV
+        let stringField = String(field).replace(/\r\n/g, " ").replace(/\n/g, " ");
+
+        // Se tiver aspas ou o separador (;), coloca entre aspas duplas e duplica as aspas internas
+        if (stringField.includes('"') || stringField.includes(SEPARATOR)) {
+          return `"${stringField.replace(/"/g, '""')}"`;
+        }
+        
+        return stringField; // Retorna sem aspas se for seguro
+      };
+
+      // Monta o conteúdo do CSV com o separador correto
+      let csvContent = headers.join(SEPARATOR) + "\n";
+
+      projetos.forEach((projeto) => {
+        const row = [
+          projeto.projetoId,
+          projeto.nomeProjeto,
+          projeto.ods,
+          projeto.prefeitura,
+          projeto.secretaria,
+          projeto.responsavelProjeto,
+          projeto.emailContato,
+          projeto.endereco,
+          projeto.venceuPspe ? "Sim" : "Não",
+          projeto.status,
+          projeto.linkProjeto,
+          projeto.website,
+          projeto.instagram,
+          projeto.descricao,
+          projeto.descricaoDiferencial,
+          projeto.odsRelacionadas,
+          projeto.apoio_planejamento,
+          projeto.escala,
+          ""
+        ];
+
+        csvContent += row.map(escapeCsvField).join(SEPARATOR) + "\n";
+      });
+
+      // --- MUDANÇA 2: Adiciona o BOM (\uFEFF) para corrigir acentos no Excel ---
+      const csvWithBOM = '\uFEFF' + csvContent;
+
+      // Configura os headers da resposta
+      res.header("Content-Type", "text/csv; charset=utf-8");
+      res.attachment("projetos_ativos_aquitemods.csv");
+      
+      return res.status(200).send(csvWithBOM);
+
+    } catch (error) {
+      console.error("Erro ao exportar projetos:", error);
+      return res.status(500).json({ message: "Erro ao gerar arquivo de exportação." });
+    }
+  }
 }
