@@ -356,9 +356,20 @@ class ProjetoController {
     try {
       const { ods } = req.params;
 
-      const numeroOds = ods.replace(/\D/g, "");
+      let odsFormatado = "";
 
-      const odsFormatado = numeroOds ? `ODS ${numeroOds}` : ods.toUpperCase();
+      if (ods === "HOME" || ods === "ESPACO_ODS") {
+        odsFormatado = ods;
+      } else {
+        const numeroOds = ods.replace(/\D/g, "");
+        odsFormatado = numeroOds ? `ODS ${numeroOds}` : ods.toUpperCase();
+      }
+
+      if (!odsFormatado) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Identificador inválido" });
+      }
 
       const [registro] = await ContadorODS.findOrCreate({
         where: { ods: odsFormatado },

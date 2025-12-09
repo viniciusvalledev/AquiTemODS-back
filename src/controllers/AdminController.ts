@@ -1032,22 +1032,27 @@ export class AdminController {
         .sort((a, b) => b.value - a.value);
 
       const visualizacoesRaw = await ContadorODS.findAll();
-      const mapaVisualizacoes: { [key: string]: number } = {};
+
+      const mapaOds: { [key: string]: number } = {};
+      const pageViews = { home: 0, espacoOds: 0 };
 
       visualizacoesRaw.forEach((v) => {
-        const chave = v.ods.trim();
+        const chave = v.ods.trim().toUpperCase();
 
-        if (!mapaVisualizacoes[chave]) {
-          mapaVisualizacoes[chave] = 0;
+        if (!chave) return;
+
+        if (chave === "HOME") {
+          pageViews.home += v.visualizacoes;
+        } else if (chave === "ESPACO_ODS" || chave === "ESPAÇO_ODS") {
+          pageViews.espacoOds += v.visualizacoes;
+        } else {
+          if (!mapaOds[chave]) mapaOds[chave] = 0;
+          mapaOds[chave] += v.visualizacoes;
         }
-        mapaVisualizacoes[chave] += v.visualizacoes;
       });
 
-      const chartVisualizacoes = Object.entries(mapaVisualizacoes)
-        .map(([ods, views]) => ({
-          ods,
-          views,
-        }))
+      const chartVisualizacoes = Object.entries(mapaOds)
+        .map(([ods, views]) => ({ ods, views }))
         .sort((a, b) => b.views - a.views);
 
       return res.json({
@@ -1067,10 +1072,11 @@ export class AdminController {
         ],
         chartEscala,
         chartApoio,
-        chartVisualizacoes,
+        chartVisualizacoes, // Apenas ODS
+        pageViews, // Acessos da Home e Espaço ODS separados
       });
     } catch (error) {
-      console.error("Erro ao gerar estatísticas:", error);
+      console.error("Erro stats:", error);
       return res.status(500).json({ message: "Erro ao buscar estatísticas." });
     }
   }
