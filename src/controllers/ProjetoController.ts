@@ -3,6 +3,7 @@ import ProjetoService from "../services/ProjetoService";
 import fs from "fs/promises";
 import path from "path";
 import Projeto from "../entities/Projeto.entity";
+import ContadorODS from "../entities/ContadorODS.entity";
 
 class ProjetoController {
   private _deleteUploadedFilesOnFailure = async (req: Request) => {
@@ -345,6 +346,31 @@ class ProjetoController {
       return res.status(200).json(projeto);
     } catch (error: any) {
       return this._handleError(error, res);
+    }
+  };
+
+  public registrarVisualizacaoOds = async (
+    req: Request,
+    res: Response
+  ): Promise<Response> => {
+    try {
+      const { ods } = req.params;
+
+      const numeroOds = ods.replace(/\D/g, "");
+
+      const odsFormatado = numeroOds ? `ODS ${numeroOds}` : ods.toUpperCase();
+
+      const [registro] = await ContadorODS.findOrCreate({
+        where: { ods: odsFormatado },
+        defaults: { visualizacoes: 0 },
+      });
+
+      await registro.increment("visualizacoes");
+
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Erro ao registrar visualização:", error);
+      return res.status(200).json({ success: false });
     }
   };
 }

@@ -68,5 +68,6 @@ router.put(
 // ROTA ATUALIZADA
 router.post("/solicitar-exclusao/:id", ProjetoController.solicitarExclusao);
 router.post("/:id/status", ProjetoController.alterarStatus);
+router.post("/visualizacao/:ods", ProjetoController.registrarVisualizacaoOds);
 
 export default router;

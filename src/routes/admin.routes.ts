@@ -39,9 +39,9 @@ router.delete(
 );
 
 router.get(
-  "/avaliacoes/projeto/:projetoId", // <--- MUDANÇA AQUI
+  "/avaliacoes/projeto/:projetoId",
   adminAuthMiddleware,
-  AdminController.getAvaliacoesByProjeto // <--- MUDANÇA AQUI
+  AdminController.getAvaliacoesByProjeto
 );
 
 // Rota para admin excluir uma avaliação
@@ -50,11 +50,13 @@ router.delete(
   adminAuthMiddleware,
   AdminController.adminDeleteAvaliacao
 );
+
 router.get(
   "/exportar-projetos",
   adminAuthMiddleware,
   AdminController.exportActiveProjetos
 );
 
+router.get("/stats", adminAuthMiddleware, AdminController.getDashboardStats);
 
 export default router;

@@ -9,6 +9,7 @@ import EmailService from "../utils/EmailService";
 import ProjetoService from "../services/ProjetoService";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
+import ContadorODS from "../entities/ContadorODS.entity";
 
 const sanitize = (name: string) =>
   (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
@@ -883,12 +884,15 @@ export class AdminController {
       return res.status(500).json({ message: "Erro ao excluir a avaliação." });
     }
   }
+
   static async exportActiveProjetos(req: Request, res: Response) {
     try {
       const projetos = await ProjetoService.listarTodos();
 
       if (!projetos || projetos.length === 0) {
-        return res.status(404).json({ message: "Nenhum projeto ativo para exportar." });
+        return res
+          .status(404)
+          .json({ message: "Nenhum projeto ativo para exportar." });
       }
 
       // Cabeçalhos do CSV
@@ -911,25 +915,23 @@ export class AdminController {
         "ODS Relacionadas",
         "Apoio Planejamento",
         "Escala",
-        "Data de Criação"
+        "Data de Criação",
       ];
 
-      // --- MUDANÇA 1: Usando PONTO E VÍRGULA (;) para o Excel brasileiro ---
       const SEPARATOR = ";";
 
-      // Função auxiliar para escapar campos CSV
       const escapeCsvField = (field: any) => {
         if (field === null || field === undefined) return '""';
-        
-        // Converte para string e remove quebras de linha que poderiam quebrar o CSV
-        let stringField = String(field).replace(/\r\n/g, " ").replace(/\n/g, " ");
 
-        // Se tiver aspas ou o separador (;), coloca entre aspas duplas e duplica as aspas internas
+        let stringField = String(field)
+          .replace(/\r\n/g, " ")
+          .replace(/\n/g, " ");
+
         if (stringField.includes('"') || stringField.includes(SEPARATOR)) {
           return `"${stringField.replace(/"/g, '""')}"`;
         }
-        
-        return stringField; // Retorna sem aspas se for seguro
+
+        return stringField;
       };
 
       // Monta o conteúdo do CSV com o separador correto
@@ -955,24 +957,121 @@ export class AdminController {
           projeto.odsRelacionadas,
           projeto.apoio_planejamento,
           projeto.escala,
-          ""
+          "",
         ];
 
         csvContent += row.map(escapeCsvField).join(SEPARATOR) + "\n";
       });
 
-      // --- MUDANÇA 2: Adiciona o BOM (\uFEFF) para corrigir acentos no Excel ---
-      const csvWithBOM = '\uFEFF' + csvContent;
+      const csvWithBOM = "\uFEFF" + csvContent;
 
-      // Configura os headers da resposta
       res.header("Content-Type", "text/csv; charset=utf-8");
       res.attachment("projetos_ativos_aquitemods.csv");
-      
-      return res.status(200).send(csvWithBOM);
 
+      return res.status(200).send(csvWithBOM);
     } catch (error) {
       console.error("Erro ao exportar projetos:", error);
-      return res.status(500).json({ message: "Erro ao gerar arquivo de exportação." });
+      return res
+        .status(500)
+        .json({ message: "Erro ao gerar arquivo de exportação." });
+    }
+  }
+
+  static async getDashboardStats(req: Request, res: Response) {
+    try {
+      // Busca apenas projetos ATIVOS
+      const projetos = await Projeto.findAll({
+        where: { status: StatusProjeto.ATIVO },
+        attributes: ["projetoId", "venceuPspe", "escala", "apoio_planejamento"],
+      });
+
+      const totalProjetos = projetos.length;
+      const venceuPspeCount = projetos.filter((p) => p.venceuPspe).length;
+
+      const somaEscala = projetos.reduce(
+        (acc, curr) =>
+          acc +
+          (typeof curr.escala === "string"
+            ? parseInt(curr.escala, 10)
+            : curr.escala || 0),
+        0
+      );
+      const mediaEscala =
+        totalProjetos > 0 ? (somaEscala / totalProjetos).toFixed(1) : 0;
+
+      // Contagem para gráfico de barras da escala
+      const escalaDistribuicao = Array(11).fill(0);
+      projetos.forEach((p) => {
+        const escalaNum =
+          typeof p.escala === "string" ? parseInt(p.escala, 10) : p.escala || 0;
+        if (escalaNum >= 0 && escalaNum <= 10) {
+          escalaDistribuicao[escalaNum]++;
+        }
+      });
+
+      const chartEscala = escalaDistribuicao.map((count, nota) => ({
+        nota: `Nota ${nota}`,
+        votos: count,
+      }));
+
+      const apoioMap: { [key: string]: number } = {};
+
+      projetos.forEach((p) => {
+        if (p.apoio_planejamento) {
+          const opcoes = p.apoio_planejamento.split(",").map((s) => s.trim());
+          opcoes.forEach((op) => {
+            if (op) {
+              apoioMap[op] = (apoioMap[op] || 0) + 1;
+            }
+          });
+        }
+      });
+
+      const chartApoio = Object.entries(apoioMap)
+        .map(([label, value]) => ({ label, value }))
+        .sort((a, b) => b.value - a.value);
+
+      const visualizacoesRaw = await ContadorODS.findAll();
+      const mapaVisualizacoes: { [key: string]: number } = {};
+
+      visualizacoesRaw.forEach((v) => {
+        const chave = v.ods.trim();
+
+        if (!mapaVisualizacoes[chave]) {
+          mapaVisualizacoes[chave] = 0;
+        }
+        mapaVisualizacoes[chave] += v.visualizacoes;
+      });
+
+      const chartVisualizacoes = Object.entries(mapaVisualizacoes)
+        .map(([ods, views]) => ({
+          ods,
+          views,
+        }))
+        .sort((a, b) => b.views - a.views);
+
+      return res.json({
+        totalProjetos,
+        mediaEscala,
+        statsPspe: [
+          {
+            name: "Venceu PSPE",
+            value: venceuPspeCount,
+            fill: "var(--color-sim)",
+          },
+          {
+            name: "Não Venceu",
+            value: totalProjetos - venceuPspeCount,
+            fill: "var(--color-nao)",
+          },
+        ],
+        chartEscala,
+        chartApoio,
+        chartVisualizacoes,
+      });
+    } catch (error) {
+      console.error("Erro ao gerar estatísticas:", error);
+      return res.status(500).json({ message: "Erro ao buscar estatísticas." });
     }
   }
 }
