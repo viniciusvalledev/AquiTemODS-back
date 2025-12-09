@@ -982,7 +982,13 @@ export class AdminController {
       // Busca apenas projetos ATIVOS
       const projetos = await Projeto.findAll({
         where: { status: StatusProjeto.ATIVO },
-        attributes: ["projetoId", "venceuPspe", "escala", "apoio_planejamento"],
+        attributes: [
+          "projetoId",
+          "venceuPspe",
+          "escala",
+          "apoio_planejamento",
+          "ods",
+        ],
       });
 
       const totalProjetos = projetos.length;
@@ -1000,6 +1006,7 @@ export class AdminController {
         totalProjetos > 0 ? (somaEscala / totalProjetos).toFixed(1) : 0;
 
       // Contagem para gráfico de barras da escala
+
       const escalaDistribuicao = Array(11).fill(0);
       projetos.forEach((p) => {
         const escalaNum =
@@ -1013,6 +1020,36 @@ export class AdminController {
         nota: `Nota ${nota}`,
         votos: count,
       }));
+
+      const projetosPorOdsMap: { [key: string]: number } = {};
+
+      // Inicializa todas as ODS com 0 para o gráfico ficar completo (opcional, mas recomendado)
+      for (let i = 1; i <= 17; i++) projetosPorOdsMap[`ODS ${i}`] = 0;
+      projetosPorOdsMap["ODS 18"] = 0; // Se você usar a 18
+
+      projetos.forEach((p) => {
+        if (p.ods) {
+          // O formato no banco costuma ser "ODS 1 - Erradicação..."
+          // Vamos extrair apenas "ODS 1" usando Regex
+          const match = p.ods.match(/ODS \d+/i);
+          if (match) {
+            const chave = match[0].toUpperCase(); // "ODS 1"
+            if (projetosPorOdsMap[chave] !== undefined) {
+              projetosPorOdsMap[chave]++;
+            }
+          }
+        }
+      });
+
+      // Transforma em lista e ordena numericamente (1, 2, ... 10)
+      const chartProjetosPorOds = Object.entries(projetosPorOdsMap)
+        .map(([ods, qtd]) => ({ ods, qtd }))
+        .filter((item) => item.qtd > 0) // (Opcional) Mostra só quem tem projeto? Ou tira essa linha pra mostrar todos
+        .sort((a, b) => {
+          const numA = parseInt(a.ods.replace(/\D/g, ""));
+          const numB = parseInt(b.ods.replace(/\D/g, ""));
+          return numA - numB;
+        });
 
       const apoioMap: { [key: string]: number } = {};
 
@@ -1072,8 +1109,9 @@ export class AdminController {
         ],
         chartEscala,
         chartApoio,
-        chartVisualizacoes, // Apenas ODS
-        pageViews, // Acessos da Home e Espaço ODS separados
+        chartVisualizacoes,
+        pageViews,
+        chartProjetosPorOds,
       });
     } catch (error) {
       console.error("Erro stats:", error);
