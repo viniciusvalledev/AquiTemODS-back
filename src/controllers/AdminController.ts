@@ -1025,15 +1025,13 @@ export class AdminController {
 
       // Inicializa todas as ODS com 0 para o gráfico ficar completo (opcional, mas recomendado)
       for (let i = 1; i <= 17; i++) projetosPorOdsMap[`ODS ${i}`] = 0;
-      projetosPorOdsMap["ODS 18"] = 0; // Se você usar a 18
+      projetosPorOdsMap["ODS 18"] = 0;
 
       projetos.forEach((p) => {
         if (p.ods) {
-          // O formato no banco costuma ser "ODS 1 - Erradicação..."
-          // Vamos extrair apenas "ODS 1" usando Regex
           const match = p.ods.match(/ODS \d+/i);
           if (match) {
-            const chave = match[0].toUpperCase(); // "ODS 1"
+            const chave = match[0].toUpperCase();
             if (projetosPorOdsMap[chave] !== undefined) {
               projetosPorOdsMap[chave]++;
             }
@@ -1044,7 +1042,7 @@ export class AdminController {
       // Transforma em lista e ordena numericamente (1, 2, ... 10)
       const chartProjetosPorOds = Object.entries(projetosPorOdsMap)
         .map(([ods, qtd]) => ({ ods, qtd }))
-        .filter((item) => item.qtd > 0) // (Opcional) Mostra só quem tem projeto? Ou tira essa linha pra mostrar todos
+        .filter((item) => item.qtd > 0)
         .sort((a, b) => {
           const numA = parseInt(a.ods.replace(/\D/g, ""));
           const numB = parseInt(b.ods.replace(/\D/g, ""));
@@ -1068,10 +1066,13 @@ export class AdminController {
         .map(([label, value]) => ({ label, value }))
         .sort((a, b) => b.value - a.value);
 
+      const totalUsuarios = await Usuario.count();
+
       const visualizacoesRaw = await ContadorODS.findAll();
 
       const mapaOds: { [key: string]: number } = {};
-      const pageViews = { home: 0, espacoOds: 0 };
+
+      const pageViews = { home: 0, espacoOds: 0, gameClick: 0 };
 
       visualizacoesRaw.forEach((v) => {
         const chave = v.ods.trim().toUpperCase();
@@ -1082,6 +1083,8 @@ export class AdminController {
           pageViews.home += v.visualizacoes;
         } else if (chave === "ESPACO_ODS" || chave === "ESPAÇO_ODS") {
           pageViews.espacoOds += v.visualizacoes;
+        } else if (chave === "GAME_CLICK") {
+          pageViews.gameClick += v.visualizacoes;
         } else {
           if (!mapaOds[chave]) mapaOds[chave] = 0;
           mapaOds[chave] += v.visualizacoes;
@@ -1095,6 +1098,7 @@ export class AdminController {
       return res.json({
         totalProjetos,
         mediaEscala,
+        totalUsuarios,
         statsPspe: [
           {
             name: "Venceu PSPE",
