@@ -358,7 +358,12 @@ class ProjetoController {
 
       let odsFormatado = "";
 
-      if (ods === "HOME" || ods === "ESPACO_ODS" || ods === "GAME_CLICK") {
+      if (
+        ods === "HOME" ||
+        ods === "ESPACO_ODS" ||
+        ods === "GAME_CLICK" ||
+        ods === "COMPARTILHAMENTO"
+      ) {
         odsFormatado = ods;
       } else {
         const numeroOds = ods.replace(/\D/g, "");

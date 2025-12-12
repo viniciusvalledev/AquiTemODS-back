@@ -1071,8 +1071,15 @@ export class AdminController {
       const visualizacoesRaw = await ContadorODS.findAll();
 
       const mapaOds: { [key: string]: number } = {};
+      for (let i = 1; i <= 17; i++) mapaOds[`ODS ${i}`] = 0;
+      mapaOds["ODS 18"] = 0;
 
-      const pageViews = { home: 0, espacoOds: 0, gameClick: 0 };
+      const pageViews = {
+        home: 0,
+        espacoOds: 0,
+        gameClick: 0,
+        compartilhamento: 0,
+      };
 
       visualizacoesRaw.forEach((v) => {
         const chave = v.ods.trim().toUpperCase();
@@ -1085,6 +1092,8 @@ export class AdminController {
           pageViews.espacoOds += v.visualizacoes;
         } else if (chave === "GAME_CLICK") {
           pageViews.gameClick += v.visualizacoes;
+        } else if (chave === "COMPARTILHAMENTO") {
+          pageViews.compartilhamento += v.visualizacoes;
         } else {
           if (!mapaOds[chave]) mapaOds[chave] = 0;
           mapaOds[chave] += v.visualizacoes;
@@ -1093,8 +1102,11 @@ export class AdminController {
 
       const chartVisualizacoes = Object.entries(mapaOds)
         .map(([ods, views]) => ({ ods, views }))
-        .sort((a, b) => b.views - a.views);
-
+        .sort((a, b) => {
+          const numA = parseInt(a.ods.replace(/\D/g, ""));
+          const numB = parseInt(b.ods.replace(/\D/g, ""));
+          return numA - numB;
+        });
       return res.json({
         totalProjetos,
         mediaEscala,
