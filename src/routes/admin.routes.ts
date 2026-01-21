@@ -57,6 +57,15 @@ router.get(
   AdminController.exportActiveProjetos
 );
 
-router.get("/stats", adminAuthMiddleware, AdminController.getDashboardStats);
+router.get("/stats",  
+  adminAuthMiddleware, 
+  AdminController.getDashboardStats
+);
+
+router.get(
+  "/prefeitura/:nome/projetos",
+  adminAuthMiddleware,
+  AdminController.getProjetosByPrefeitura
+);
 
 export default router;

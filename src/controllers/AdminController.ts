@@ -977,6 +977,26 @@ export class AdminController {
     }
   }
 
+  static async getProjetosByPrefeitura(req: Request, res: Response) {
+    try {
+      // Decodifica o nome da URL (ex: "Prefeitura%20de%20Saquarema" -> "Prefeitura de Saquarema")
+      const nomePrefeitura = decodeURIComponent(req.params.nome);
+
+      const projetos = await Projeto.findAll({
+        where: {
+          status: StatusProjeto.ATIVO,
+          prefeitura: nomePrefeitura,
+        },
+        order: [["projetoId", "DESC"]],
+      });
+
+      return res.json(projetos);
+    } catch (error) {
+      console.error("Erro ao buscar projetos por prefeitura:", error);
+      return res.status(500).json({ message: "Erro ao buscar projetos." });
+    }
+  }
+
   static async getDashboardStats(req: Request, res: Response) {
     try {
       // Busca apenas projetos ATIVOS
@@ -988,6 +1008,7 @@ export class AdminController {
           "escala",
           "apoio_planejamento",
           "ods",
+          "prefeitura",
         ],
       });
 
@@ -1107,31 +1128,45 @@ export class AdminController {
           const numB = parseInt(b.ods.replace(/\D/g, ""));
           return numA - numB;
         });
-      return res.json({
-        totalProjetos,
-        mediaEscala,
-        totalUsuarios,
-        statsPspe: [
-          {
-            name: "Venceu PSPE",
-            value: venceuPspeCount,
-            fill: "var(--color-sim)",
-          },
-          {
-            name: "Não Venceu",
-            value: totalProjetos - venceuPspeCount,
-            fill: "var(--color-nao)",
-          },
-        ],
-        chartEscala,
-        chartApoio,
-        chartVisualizacoes,
-        pageViews,
-        chartProjetosPorOds,
-      });
-    } catch (error) {
-      console.error("Erro stats:", error);
-      return res.status(500).json({ message: "Erro ao buscar estatísticas." });
-    }
+        
+    const prefeituraMap: { [key: string]: number } = {};
+
+    projetos.forEach((p) => {
+      // Normaliza o nome ou usa "Não Informada"
+      const nome = p.prefeitura ? p.prefeitura.trim() : "Prefeitura Não Informada";
+      prefeituraMap[nome] = (prefeituraMap[nome] || 0) + 1;
+    });
+
+    const chartPrefeituras = Object.entries(prefeituraMap)
+      .map(([nome, qtd]) => ({ nome, qtd }))
+      .sort((a, b) => b.qtd - a.qtd); // Ordena do maior para o menor
+
+    return res.json({
+      totalProjetos,
+      mediaEscala,
+      totalUsuarios,
+      statsPspe: [
+        {
+          name: "Venceu PSPE",
+          value: venceuPspeCount,
+          fill: "var(--color-sim)",
+        },
+        {
+          name: "Não Venceu",
+          value: totalProjetos - venceuPspeCount,
+          fill: "var(--color-nao)",
+        },
+      ],
+      chartEscala,
+      chartApoio,
+      chartVisualizacoes,
+      pageViews,
+      chartProjetosPorOds,
+      chartPrefeituras,
+    });
+  } catch (error) {
+    console.error("Erro stats:", error);
+    return res.status(500).json({ message: "Erro ao buscar estatísticas." });
+  }
   }
 }
