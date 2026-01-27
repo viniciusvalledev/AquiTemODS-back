@@ -6,6 +6,7 @@ class SustentAi extends Model {
   public titulo!: string;
   public linkDestino!: string;
   public imagemUrl!: string;
+  public visualizacoes!: number;
 }
 
 SustentAi.init(
@@ -29,6 +30,11 @@ SustentAi.init(
       type: DataTypes.STRING,
       allowNull: false,
       field: "imagem_url",
+    },
+    visualizacoes: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
   },
   {

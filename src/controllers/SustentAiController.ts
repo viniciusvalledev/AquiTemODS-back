@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import SustentAi from "../entities/SustentAi.entity";
 import fs from "fs";
 import path from "path";
+import ContadorODS from "../entities/ContadorODS.entity";
 
 const toSlug = (str: string) => {
   return str
@@ -187,6 +188,39 @@ export class SustentAiController {
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Erro ao remover box." });
+    }
+  }
+
+  // Registrar Clique na Navbar ---
+  static async registerNavClick(req: Request, res: Response) {
+    try {
+      const chave = "SUSTENTAI_NAV";
+      let contador = await ContadorODS.findOne({ where: { ods: chave } });
+
+      if (!contador) {
+        contador = await ContadorODS.create({ ods: chave, visualizacoes: 1 });
+      } else {
+        await contador.increment("visualizacoes");
+      }
+      return res.status(200).json({ message: "Clique navbar OK" });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Erro navbar" });
+    }
+  }
+
+  // 2. REGISTRAR CLIQUE NO CARD
+  static async registerCardClick(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const card = await SustentAi.findByPk(id);
+      if (!card) return res.status(404).json({ message: "Card não existe" });
+
+      await card.increment("visualizacoes");
+      return res.status(200).json({ message: "Clique card OK" });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Erro card" });
     }
   }
 }

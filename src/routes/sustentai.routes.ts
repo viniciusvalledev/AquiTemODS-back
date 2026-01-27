@@ -27,6 +27,9 @@ router.post(
   SustentAiController.create,
 );
 
+router.post("/click-nav", SustentAiController.registerNavClick);
+router.post("/click-card/:id", SustentAiController.registerCardClick);
+
 // Rota PUT (Editar) - Adicionada
 router.put(
   "/:id",

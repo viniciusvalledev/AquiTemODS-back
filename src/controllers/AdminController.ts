@@ -25,7 +25,7 @@ const deleteProjectFolder = async (ods: string, nomeProjeto: string) => {
       "..",
       "uploads",
       safeOds,
-      safeNomeProjeto
+      safeNomeProjeto,
     );
 
     await fs.access(projectDir);
@@ -48,17 +48,17 @@ if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
   console.error("ERRO CRÍTICO: Variáveis de ambiente do Admin não definidas.");
 
   console.error(
-    "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET"
+    "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET",
   );
 
   console.error(
-    "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor."
+    "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor.",
   );
 
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 
   throw new Error(
-    "Credenciais de administrador ou segredo JWT não configurados."
+    "Credenciais de administrador ou segredo JWT não configurados.",
   );
 }
 
@@ -72,7 +72,7 @@ export class AdminController {
         JWT_SECRET as string,
         {
           expiresIn: "8h",
-        }
+        },
       );
       return res.json({ success: true, token });
     }
@@ -201,13 +201,13 @@ export class AdminController {
                     __dirname,
                     "..",
                     "..",
-                    logoAntigaUrl
+                    logoAntigaUrl,
                   );
                   await fs.unlink(filePath);
                 } catch (err) {
                   console.error(
                     `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-                    err
+                    err,
                   );
                 }
               }
@@ -234,7 +234,7 @@ export class AdminController {
                 } catch (err) {
                   console.error(
                     `AVISO: Falha ao deletar imagem antiga: ${imagem.url}`,
-                    err
+                    err,
                   );
                 }
               }
@@ -250,7 +250,7 @@ export class AdminController {
                 (url: string) => ({
                   url,
                   projetoId: projeto.projetoId, // Usa projetoId
-                })
+                }),
               );
               await ImagemProjeto.bulkCreate(novasImagens, { transaction });
             }
@@ -323,17 +323,17 @@ export class AdminController {
             html: emailInfo.html,
           });
           console.log(
-            `Email de notificação enviado com sucesso para ${projeto.emailContato}`
+            `Email de notificação enviado com sucesso para ${projeto.emailContato}`,
           );
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${projeto.emailContato}:`,
-            error
+            error,
           );
         }
       } else if (emailInfo) {
         console.warn(
-          `Tentativa de enviar email para projeto ID ${projeto.projetoId} sem emailContato definido.`
+          `Tentativa de enviar email para projeto ID ${projeto.projetoId} sem emailContato definido.`,
         );
       }
 
@@ -399,7 +399,7 @@ export class AdminController {
             } catch (err) {
               console.error(
                 `AVISO: Falha ao deletar logo (pendente ou antiga): ${logoAntigaUrl}`,
-                err
+                err,
               );
             }
           }
@@ -415,7 +415,7 @@ export class AdminController {
             } catch (err) {
               console.error(
                 `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-                err
+                err,
               );
             }
           }
@@ -454,7 +454,8 @@ export class AdminController {
           // ****** INÍCIO DA CORREÇÃO ******
           // FILTRA as imagens pendentes, removendo as que o admin marcou para deletar
           const imagensParaCriar = dadosRecebidos.imagens.filter(
-            (url: string) => !(urlsParaExcluir && urlsParaExcluir.includes(url))
+            (url: string) =>
+              !(urlsParaExcluir && urlsParaExcluir.includes(url)),
           );
           // ****** FIM DA CORREÇÃO ******
 
@@ -511,7 +512,7 @@ export class AdminController {
           ativo: true,
           dados_atualizacao: null, // Limpa os dados pendentes
         },
-        { transaction }
+        { transaction },
       );
 
       // 4. LÓGICA DE E-MAIL (inalterada)
@@ -553,7 +554,7 @@ export class AdminController {
         } catch (error) {
           console.error(
             `Falha ao enviar email de notificação para ${projeto.emailContato}:`,
-            error
+            error,
           );
         }
       }
@@ -614,7 +615,7 @@ export class AdminController {
         } catch (err) {
           console.error(
             `AVISO: Falha ao deletar logo antiga: ${logoAntigaUrl}`,
-            err
+            err,
           );
         }
       }
@@ -644,7 +645,7 @@ export class AdminController {
           } catch (err) {
             console.error(
               `AVISO: Falha ao deletar imagem de portfólio: ${imagem.url}`,
-              err
+              err,
             );
           }
         }
@@ -682,7 +683,7 @@ export class AdminController {
 
   static adminDeleteProjeto = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id);
@@ -794,12 +795,12 @@ export class AdminController {
             html: emailInfo.html,
           });
           console.log(
-            `Email de rejeição enviado com sucesso para ${emailParaNotificar}`
+            `Email de rejeição enviado com sucesso para ${emailParaNotificar}`,
           );
         } catch (error) {
           console.error(
             `Falha ao enviar email de rejeição para ${emailParaNotificar}:`,
-            error
+            error,
           );
         }
       }
@@ -1021,7 +1022,7 @@ export class AdminController {
           (typeof curr.escala === "string"
             ? parseInt(curr.escala, 10)
             : curr.escala || 0),
-        0
+        0,
       );
       const mediaEscala =
         totalProjetos > 0 ? (somaEscala / totalProjetos).toFixed(1) : 0;
@@ -1100,6 +1101,7 @@ export class AdminController {
         espacoOds: 0,
         gameClick: 0,
         compartilhamento: 0,
+        sustentAiNav: 0,
       };
 
       visualizacoesRaw.forEach((v) => {
@@ -1115,6 +1117,8 @@ export class AdminController {
           pageViews.gameClick += v.visualizacoes;
         } else if (chave === "COMPARTILHAMENTO") {
           pageViews.compartilhamento += v.visualizacoes;
+        } else if (chave === "SUSTENTAI_NAV") {
+          pageViews.sustentAiNav += v.visualizacoes;
         } else {
           if (!mapaOds[chave]) mapaOds[chave] = 0;
           mapaOds[chave] += v.visualizacoes;
@@ -1128,45 +1132,47 @@ export class AdminController {
           const numB = parseInt(b.ods.replace(/\D/g, ""));
           return numA - numB;
         });
-        
-    const prefeituraMap: { [key: string]: number } = {};
 
-    projetos.forEach((p) => {
-      // Normaliza o nome ou usa "Não Informada"
-      const nome = p.prefeitura ? p.prefeitura.trim() : "Prefeitura Não Informada";
-      prefeituraMap[nome] = (prefeituraMap[nome] || 0) + 1;
-    });
+      const prefeituraMap: { [key: string]: number } = {};
 
-    const chartPrefeituras = Object.entries(prefeituraMap)
-      .map(([nome, qtd]) => ({ nome, qtd }))
-      .sort((a, b) => b.qtd - a.qtd); // Ordena do maior para o menor
+      projetos.forEach((p) => {
+        // Normaliza o nome ou usa "Não Informada"
+        const nome = p.prefeitura
+          ? p.prefeitura.trim()
+          : "Prefeitura Não Informada";
+        prefeituraMap[nome] = (prefeituraMap[nome] || 0) + 1;
+      });
 
-    return res.json({
-      totalProjetos,
-      mediaEscala,
-      totalUsuarios,
-      statsPspe: [
-        {
-          name: "Venceu PSPE",
-          value: venceuPspeCount,
-          fill: "var(--color-sim)",
-        },
-        {
-          name: "Não Venceu",
-          value: totalProjetos - venceuPspeCount,
-          fill: "var(--color-nao)",
-        },
-      ],
-      chartEscala,
-      chartApoio,
-      chartVisualizacoes,
-      pageViews,
-      chartProjetosPorOds,
-      chartPrefeituras,
-    });
-  } catch (error) {
-    console.error("Erro stats:", error);
-    return res.status(500).json({ message: "Erro ao buscar estatísticas." });
-  }
+      const chartPrefeituras = Object.entries(prefeituraMap)
+        .map(([nome, qtd]) => ({ nome, qtd }))
+        .sort((a, b) => b.qtd - a.qtd); // Ordena do maior para o menor
+
+      return res.json({
+        totalProjetos,
+        mediaEscala,
+        totalUsuarios,
+        statsPspe: [
+          {
+            name: "Venceu PSPE",
+            value: venceuPspeCount,
+            fill: "var(--color-sim)",
+          },
+          {
+            name: "Não Venceu",
+            value: totalProjetos - venceuPspeCount,
+            fill: "var(--color-nao)",
+          },
+        ],
+        chartEscala,
+        chartApoio,
+        chartVisualizacoes,
+        pageViews,
+        chartProjetosPorOds,
+        chartPrefeituras,
+      });
+    } catch (error) {
+      console.error("Erro stats:", error);
+      return res.status(500).json({ message: "Erro ao buscar estatísticas." });
+    }
   }
 }
