@@ -17,6 +17,7 @@ import ProjetoRoutes from "./routes/Projeto.routes";
 import fileRoutes from "./routes/file.routes";
 import adminRoutes from "./routes/admin.routes";
 import { authMiddleware } from "./middlewares/auth.middleware";
+import sustentAiRoutes from "./routes/sustentai.routes";
 
 const app = express();
 const uploadsPath = path.resolve(process.cwd(), "uploads");
@@ -46,6 +47,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/projetos", ProjetoRoutes);
 app.use("/api/avaliacoes", avaliacaoRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/sustentai", sustentAiRoutes);
 
 app.use("/api/admin", adminRoutes);
 
