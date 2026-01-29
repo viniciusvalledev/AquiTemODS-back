@@ -9,6 +9,8 @@ import EmailService from "../utils/EmailService";
 import ProjetoService from "../services/ProjetoService";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
+import * as bcrypt from "bcryptjs";
+import * as crypto from "crypto";
 import ContadorODS from "../entities/ContadorODS.entity";
 
 const sanitize = (name: string) =>
@@ -1173,6 +1175,191 @@ export class AdminController {
     } catch (error) {
       console.error("Erro stats:", error);
       return res.status(500).json({ message: "Erro ao buscar estatísticas." });
+    }
+  }
+static async getAllUsers(req: Request, res: Response) {
+    try {
+      const usuarios = await Usuario.findAll({
+        attributes: {
+          exclude: ["password", "confirmationToken", "resetPasswordToken"],
+        },
+        order: [["usuarioId", "ASC"]],
+      });
+      return res.json(usuarios);
+    } catch (error) {
+      console.error("Erro ao buscar usuários (admin):", error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao buscar lista de usuários." });
+    }
+  }
+
+  static async adminUpdateUser(req: Request, res: Response) {
+    const { id } = req.params;
+    const { nomeCompleto, email, username, enabled } = req.body;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const usuario = await Usuario.findByPk(id, { transaction });
+
+      if (!usuario) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Usuário não encontrado." });
+      }
+
+      const dadosAtualizacao: any = {};
+      if (nomeCompleto !== undefined)
+        dadosAtualizacao.nomeCompleto = nomeCompleto;
+      if (email !== undefined) dadosAtualizacao.email = email;
+      if (username !== undefined) dadosAtualizacao.username = username;
+      if (enabled !== undefined) dadosAtualizacao.enabled = enabled;
+
+      await usuario.update(dadosAtualizacao, { transaction });
+      await transaction.commit();
+
+      return res
+        .status(200)
+        .json({ message: "Usuário atualizado com sucesso." });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Erro ao atualizar usuário (admin):", error);
+      return res.status(500).json({ message: "Erro ao atualizar usuário." });
+    }
+  }
+
+  static async adminDeleteUser(req: Request, res: Response) {
+    const { id } = req.params;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const usuario = await Usuario.findByPk(id, { transaction });
+
+      if (!usuario) {
+        await transaction.rollback();
+        return res.status(404).json({ message: "Usuário não encontrado." });
+      }
+
+      // 1. Busca todas as avaliações deste usuário para pegar os IDs
+      const avaliacoesDoUsuario = await Avaliacao.findAll({
+        where: { usuarioId: id },
+        attributes: ["avaliacoesId"], // Certifique-se que a PK é esta mesma
+        transaction,
+      });
+
+      const idsAvaliacoes = avaliacoesDoUsuario.map((a) => a.avaliacoesId);
+
+      if (idsAvaliacoes.length > 0) {
+        // 2. Deleta as RESPOSTAS (filhas) dessas avaliações
+        // CORREÇÃO: Mudamos de 'parentId' para 'parent_id' para bater com o banco
+        await Avaliacao.destroy({
+          where: { parent_id: idsAvaliacoes }, 
+          transaction,
+        });
+
+        // 3. Deleta as próprias avaliações do usuário
+        await Avaliacao.destroy({
+          where: { usuarioId: id },
+          transaction,
+        });
+      }
+
+      // 4. Deleta o usuário
+      await usuario.destroy({ transaction });
+
+      await transaction.commit();
+      
+      return res
+        .status(200)
+        .json({
+          message: "Usuário e todos os seus dados vinculados foram excluídos.",
+        });
+    } catch (error) {
+      await transaction.rollback();
+      console.error("Erro ao excluir usuário (admin):", error);
+      return res.status(500).json({ message: "Erro ao excluir usuário." });
+    }
+  }
+
+  static async adminChangePassword(req: Request, res: Response) {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "A senha deve ter pelo menos 6 caracteres." });
+    }
+
+    try {
+      const usuario = await Usuario.findByPk(id);
+
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado." });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      usuario.password = hashedPassword;
+      usuario.resetPasswordToken = null;
+      usuario.resetPasswordTokenExpiry = null;
+
+      await usuario.save();
+
+      return res.status(200).json({ message: "Senha alterada com sucesso." });
+    } catch (error) {
+      console.error("Erro ao alterar senha (admin):", error);
+      return res.status(500).json({ message: "Erro ao alterar a senha." });
+    }
+  }
+
+  static async resendConfirmationEmail(req: Request, res: Response) {
+    const { id } = req.params;
+
+    try {
+      const usuario = await Usuario.findByPk(id);
+
+      if (!usuario) {
+        return res.status(404).json({ message: "Usuário não encontrado." });
+      }
+
+      if (usuario.enabled) {
+        return res
+          .status(400)
+          .json({ message: "Este usuário já está confirmado e ativo." });
+      }
+
+      // Gera um novo token de confirmação
+      const confirmationToken = crypto.randomBytes(20).toString("hex");
+      usuario.confirmationToken = confirmationToken;
+      await usuario.save();
+
+      const confirmUrl = `${process.env.FRONTEND_URL}/confirmar-conta?token=${confirmationToken}`;
+
+      const emailHtml = `
+        <h1>Confirmação de Conta (Reenvio Admin)</h1>
+        <p>Olá, ${usuario.nomeCompleto}.</p>
+        <p>Um administrador solicitou o reenvio do seu link de confirmação.</p>
+        <p>Por favor, confirme seu cadastro clicando no link abaixo:</p>
+        <a href="${confirmUrl}" target="_blank">Confirmar minha conta</a>
+        <p>Se você não solicitou isso, ignore este email.</p>
+      `;
+
+      await EmailService.sendGenericEmail({
+        to: usuario.email,
+        subject: "Confirme sua conta no MeideSaquá",
+        html: emailHtml,
+      });
+
+      return res
+        .status(200)
+        .json({ message: "Email de confirmação reenviado com sucesso." });
+    } catch (error) {
+      console.error("Erro ao reenviar confirmação (admin):", error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao enviar email de confirmação." });
     }
   }
 }
