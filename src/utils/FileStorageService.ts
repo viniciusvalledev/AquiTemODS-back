@@ -2,6 +2,7 @@
 import fs from "fs/promises"; // Usamos a versão de promessas do 'fs'
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { sanitizeFilename } from "./stringUtils";
 
 // O caminho para a pasta de uploads, a partir da raiz do projeto
 const UPLOADS_DIR = path.resolve(__dirname, "..", "..", "uploads");
@@ -50,11 +51,6 @@ class FileStorageService {
     return `/images/${uniqueFilename}`;
   }
 
-  /**
-   * Salva um ficheiro enviado via formulário (multipart/form-data).
-   * @param file O objeto do ficheiro (geralmente do Multer).
-   * @returns O URL público do ficheiro salvo.
-   */
   public async save(file: Express.Multer.File): Promise<string> {
     await this.ensureUploadsDirExists();
 
@@ -63,6 +59,33 @@ class FileStorageService {
     // O trabalho principal será feito na configuração do Multer.
     const fileUrl = `/images/${file.filename}`;
     return fileUrl;
+  }
+public async deleteFolder(
+    ods: string,
+    nomeProjeto: string
+  ): Promise<void> {
+    
+    const safeOds = sanitizeFilename(ods || "geral");
+    const safeNomeProjeto = sanitizeFilename(nomeProjeto || "projeto_sem_nome");
+
+    const folderPath = path.join(UPLOADS_DIR, safeOds, safeNomeProjeto);
+
+    try {
+      
+      await fs.access(folderPath);
+      
+      
+      await fs.rm(folderPath, { recursive: true, force: true });
+      console.log(`[FileStorageService] Pasta removida: ${folderPath}`);
+    } catch (error: any) {
+    
+      if (error.code !== "ENOENT") {
+        console.error(
+          `[FileStorageService] Erro ao remover pasta ${folderPath}:`,
+          error.message
+        );
+      }
+    }
   }
 }
 
