@@ -4,9 +4,9 @@ import { adminAuthMiddleware } from "../middlewares/adminAuth.middleware";
 import multer from "multer";
 import path from "path";
 
+// --- Configuração do Multer (Uploads) ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Pasta temporária antes do controller mover
     cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
@@ -14,12 +14,43 @@ const storage = multer.diskStorage({
     cb(null, "temp-curso-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
-const upload = multer({ storage });
+
+// Filtro para aceitar apenas imagens
+const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
+  const allowedMimes = [
+    "image/jpeg",
+    "image/pjpeg",
+    "image/png",
+    "image/webp",
+    "image/jpg"
+  ];
+
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Formato inválido. Apenas imagens são permitidas."));
+  }
+};
+
+const upload = multer({ 
+  storage: storage, 
+  fileFilter: fileFilter 
+});
 
 const router = Router();
 
+// --- ROTAS PÚBLICAS ---
+
+// Listar cursos (aceita ?status=ativo|inativo)
 router.get("/", CursoController.getAll);
 
+// Registrar clique (contabilizar visualização)
+router.patch("/:id/click", CursoController.registrarClique);
+
+
+// --- ROTAS ADMINISTRATIVAS (Protegidas) ---
+
+// Criar novo curso (com upload de imagem)
 router.post(
   "/",
   adminAuthMiddleware,
@@ -27,6 +58,7 @@ router.post(
   CursoController.create
 );
 
+// Editar curso existente (com upload opcional)
 router.put(
   "/:id",
   adminAuthMiddleware,
@@ -34,10 +66,22 @@ router.put(
   CursoController.update
 );
 
+// Arquivar curso (Soft Delete - torna inativo)
 router.delete(
   "/:id",
   adminAuthMiddleware,
   CursoController.delete
+);
+
+// Reativar curso arquivado
+router.patch(
+  "/:id/restore",
+  adminAuthMiddleware,
+  CursoController.reactivate
+);
+router.delete("/:id/force", 
+  adminAuthMiddleware, 
+  CursoController.forceDelete
 );
 
 export default router;

@@ -7,6 +7,7 @@ class Curso extends Model {
   public linkDestino!: string;
   public imagemUrl!: string;
   public visualizacoes!: number;
+  public ativo!: boolean; 
 }
 
 Curso.init(
@@ -36,10 +37,15 @@ Curso.init(
       allowNull: false,
       defaultValue: 0,
     },
+    ativo: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true, 
+    },
   },
   {
     sequelize,
-    tableName: "cursos", // Nome da tabela no banco
+    tableName: "cursos",
     timestamps: true,
   }
 );
