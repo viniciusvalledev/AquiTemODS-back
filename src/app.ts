@@ -3,9 +3,9 @@ import cors from "cors";
 import path from "path";
 import dotenv from "dotenv";
 import sequelize from "./config/database";
+import cursoRoutes from "./routes/Curso.routes";
 
-// É uma boa prática carregar as variáveis de ambiente o mais cedo possível
-// Se você tem um .env.local, esta linha o carregará. Caso contrário, o dotenv.config() abaixo pegará o .env padrão.
+
 dotenv.config({ path: path.resolve(__dirname, "..", ".env.local") });
 dotenv.config();
 
@@ -53,5 +53,7 @@ app.use("/api/admin", adminRoutes);
 
 app.use("/api/users", authMiddleware, userRoutes);
 app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
+
+app.use("/api/cursos", cursoRoutes);
 
 export default app;

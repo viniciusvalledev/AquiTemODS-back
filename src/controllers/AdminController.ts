@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import Projeto, { StatusProjeto } from "../entities/Projeto.entity"; // Assumindo que Projeto.entity.ts existe
+import Projeto, { StatusProjeto } from "../entities/Projeto.entity"; 
 import * as jwt from "jsonwebtoken";
-import ImagemProjeto from "../entities/ImagemProjeto.entity"; // Verifique se o caminho está correto
+import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import sequelize from "../config/database";
 import fs from "fs/promises";
 import path from "path";
@@ -46,19 +46,14 @@ const JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 if (!ADMIN_USER || !ADMIN_PASSWORD || !JWT_SECRET) {
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-
   console.error("ERRO CRÍTICO: Variáveis de ambiente do Admin não definidas.");
-
   console.error(
     "Por favor, defina ADMIN_USER, ADMIN_PASSWORD, e ADMIN_JWT_SECRET",
   );
-
   console.error(
     "no seu ficheiro .env (ou .env.local) antes de iniciar o servidor.",
   );
-
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-
   throw new Error(
     "Credenciais de administrador ou segredo JWT não configurados.",
   );
@@ -88,7 +83,7 @@ export class AdminController {
     try {
       const includeOptions = {
         model: ImagemProjeto,
-        as: "projetoImg", // Alias correto para a associação Projeto <-> ImagemProjeto
+        as: "projetoImg",
         attributes: ["url"],
       };
 
@@ -119,12 +114,10 @@ export class AdminController {
     const transaction = await sequelize.transaction();
 
     try {
-      // *** VARIÁVEL DE RESPOSTA INICIALIZADA ***
       let responseMessage = "Solicitação aprovada com sucesso.";
 
       const projeto = await Projeto.findByPk(id, {
         transaction,
-        // Inclui ImagemProjeto para lidar com a atualização de imagens
         include: [{ model: ImagemProjeto, as: "projetoImg" }],
       });
       if (!projeto) {
@@ -157,14 +150,23 @@ export class AdminController {
           if (projeto.dados_atualizacao) {
             const dadosRecebidos = projeto.dados_atualizacao as any;
 
-            //  Inicializa vazio para atualização seletiva ***
+            //  Inicializa vazio para atualização seletiva
             const dadosParaAtualizar: Partial<Projeto> & {
               [key: string]: any;
             } = {};
 
-            //  Define campos permitidos (ajuste conforme seu modelo Projeto) ***
+            //  *** CORREÇÃO: ADICIONADO CAMPOS FALTANTES ***
             const camposPermitidos: (keyof Projeto | string)[] = [
-              // Use `keyof Projeto` se tiver a definição
+              "nomeProjeto", // Adicionado
+              "prefeitura", // Adicionado
+              "secretaria", // Adicionado
+              "responsavelProjeto", // Adicionado
+              "emailContato", // Adicionado
+              "linkProjeto", // Adicionado
+              "endereco", // Adicionado
+              "ods", // Adicionado
+              "apoio_planejamento", // Adicionado
+              "escala", // Adicionado
               "descricaoDiferencial",
               "descricao",
               "objetivo",
@@ -182,19 +184,17 @@ export class AdminController {
               "venceuPspe",
             ];
 
-            //  Copia apenas os campos permitidos e existentes ***
+            //  Copia apenas os campos permitidos e existentes
             for (const key of camposPermitidos) {
-              // Verifica se a chave existe em dadosRecebidos e não é nula/undefined
               if (
                 dadosRecebidos.hasOwnProperty(key) &&
                 dadosRecebidos[key] != null
               ) {
-                // Atribui o valor ao objeto de atualização
                 (dadosParaAtualizar as any)[key] = dadosRecebidos[key];
               }
             }
 
-            // Lógica para LOGO (mantida e ajustada)
+            // Lógica para LOGO
             if (dadosRecebidos.logo) {
               const logoAntigaUrl = projeto.logoUrl;
               if (logoAntigaUrl) {
@@ -216,19 +216,39 @@ export class AdminController {
               dadosParaAtualizar.logoUrl = dadosRecebidos.logo;
             }
 
-            // Lógica para IMAGENS (mantida e ajustada para ImagemProjeto)
+            // *** CORREÇÃO: LÓGICA PARA OFÍCIO ***
+            if (dadosRecebidos.oficio) {
+              const oficioAntigoUrl = projeto.oficioUrl;
+              if (oficioAntigoUrl) {
+                try {
+                  const filePath = path.join(
+                    __dirname,
+                    "..",
+                    "..",
+                    oficioAntigoUrl,
+                  );
+                  await fs.unlink(filePath);
+                } catch (err) {
+                  console.error(
+                    `AVISO: Falha ao deletar ofício antigo: ${oficioAntigoUrl}`,
+                    err,
+                  );
+                }
+              }
+              dadosParaAtualizar.oficioUrl = dadosRecebidos.oficio;
+            }
+
+            // Lógica para IMAGENS (Portfólio)
             if (
-              dadosRecebidos.imagens && // O campo em dados_atualizacao chama-se 'imagens'
+              dadosRecebidos.imagens &&
               Array.isArray(dadosRecebidos.imagens) &&
               dadosRecebidos.imagens.length > 0
             ) {
-              // Busca imagens antigas DENTRO da transação
               const imagensAntigas = await ImagemProjeto.findAll({
-                where: { projetoId: projeto.projetoId }, // Usa projetoId
+                where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
-              // Deleta arquivos antigos
               for (const imagem of imagensAntigas) {
                 try {
                   const filePath = path.join(__dirname, "..", "..", imagem.url);
@@ -241,17 +261,15 @@ export class AdminController {
                 }
               }
 
-              // Deleta referências antigas no banco (DENTRO da transação)
               await ImagemProjeto.destroy({
-                where: { projetoId: projeto.projetoId }, // Usa projetoId
+                where: { projetoId: projeto.projetoId },
                 transaction,
               });
 
-              // Cria novas referências no banco (DENTRO da transação)
               const novasImagens = dadosRecebidos.imagens.map(
                 (url: string) => ({
                   url,
-                  projetoId: projeto.projetoId, // Usa projetoId
+                  projetoId: projeto.projetoId,
                 }),
               );
               await ImagemProjeto.bulkCreate(novasImagens, { transaction });
@@ -260,19 +278,16 @@ export class AdminController {
             // Atualiza status e limpa dados temporários
             dadosParaAtualizar.dados_atualizacao = null;
             dadosParaAtualizar.status = StatusProjeto.ATIVO;
-            dadosParaAtualizar.ativo = true; // Garante ativação
+            dadosParaAtualizar.ativo = true;
 
-            // Aplica mudanças no banco com dados filtrados
             await projeto.update(dadosParaAtualizar, { transaction });
           } else {
-            // Caso não haja dados, apenas reativa
             projeto.dados_atualizacao = null;
             projeto.status = StatusProjeto.ATIVO;
             projeto.ativo = true;
             await projeto.save({ transaction });
           }
 
-          // Prepara email de confirmação de atualização
           emailInfo = {
             subject:
               "Sua solicitação de atualização no Aqui Tem ODS foi Aprovada!",
@@ -288,10 +303,9 @@ export class AdminController {
               <p><strong>Equipe Aqui Tem ODS</strong></p>
             `,
           };
-          break; // Fim do case PENDENTE_ATUALIZACAO
+          break;
 
         case StatusProjeto.PENDENTE_EXCLUSAO:
-          // *** CORREÇÃO LÓGICA EXCLUSÃO ***
           emailInfo = {
             subject: "Seu projeto foi removido da plataforma Aqui Tem ODS",
             html: `
@@ -305,22 +319,17 @@ export class AdminController {
           };
 
           await deleteProjectFolder(projeto.ods, projeto.nomeProjeto);
-
           await projeto.destroy({ transaction });
           responseMessage = "Projeto excluído com sucesso.";
-
           break;
       }
 
-      // *** CORREÇÃO LÓGICA EXCLUSÃO: Commit fora do case ***
       await transaction.commit();
 
-      // Envio de e-mail após o commit
       if (emailInfo && projeto.emailContato) {
-        // Verifica email antes de enviar
         try {
           await EmailService.sendGenericEmail({
-            to: projeto.emailContato, // Usa o campo de email correto do Projeto
+            to: projeto.emailContato,
             subject: emailInfo.subject,
             html: emailInfo.html,
           });
@@ -333,33 +342,25 @@ export class AdminController {
             error,
           );
         }
-      } else if (emailInfo) {
-        console.warn(
-          `Tentativa de enviar email para projeto ID ${projeto.projetoId} sem emailContato definido.`,
-        );
       }
 
-      // *** RESPOSTA FINAL USA A VARIÁVEL ***
-      return res.status(200).json({ message: responseMessage }); // Usa a variável de mensagem
+      return res.status(200).json({ message: responseMessage });
     } catch (error) {
       await transaction.rollback();
       console.error("ERRO DURANTE A APROVAÇÃO:", error);
-      // TODO: Considerar deletar arquivos movidos/criados antes do erro no rollback, se aplicável.
       return res
         .status(500)
         .json({ message: "Erro ao aprovar a solicitação." });
     }
   }
 
+  // ... (RESTANTE DO CÓDIGO PERMANECE O MESMO: editAndApproveRequest, rejectRequest, etc.)
+  // Certifique-se de manter todo o resto da classe AdminController abaixo.
+
   static async editAndApproveRequest(req: Request, res: Response) {
     const { id } = req.params;
-    const adminEditedData = req.body; // Dados finais editados pelo admin (textos + flags de deleção)
-
-    // ****** INÍCIO DA CORREÇÃO ******
-    // 1. Pega os arrays de deleção que o modal enviou
+    const adminEditedData = req.body;
     const { urlsParaExcluir } = adminEditedData;
-    // ****** FIM DA CORREÇÃO ******
-
     const transaction = await sequelize.transaction();
 
     try {
@@ -377,17 +378,11 @@ export class AdminController {
       const statusOriginal = projeto.status;
       const dadosRecebidos = (projeto.dados_atualizacao || {}) as any;
 
-      // 1. LÓGICA DE MANIPULAÇÃO DE ARQUIVOS
-      // Esta lógica agora combina a aprovação de *novos* arquivos (de dados_atualizacao)
-      // com a exclusão de arquivos (de adminEditedData)
-
       if (
         statusOriginal === StatusProjeto.PENDENTE_ATUALIZACAO &&
         projeto.dados_atualizacao
       ) {
         // Lógica para LOGO
-        // ****** INÍCIO DA CORREÇÃO ******
-        // Cenário 1: Admin marcou a logo (seja a antiga ou uma nova pendente) para DELEÇÃO
         if (
           adminEditedData.hasOwnProperty("logoUrl") &&
           adminEditedData.logoUrl === null
@@ -395,7 +390,6 @@ export class AdminController {
           const logoAntigaUrl = projeto.logoUrl || dadosRecebidos.logo;
           if (logoAntigaUrl) {
             try {
-              // Deleta o arquivo físico (antigo ou o novo que estava pendente)
               const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
               await fs.unlink(filePath);
             } catch (err) {
@@ -405,11 +399,8 @@ export class AdminController {
               );
             }
           }
-          // 'adminEditedData' já tem 'logoUrl: null', que será salvo no 'projeto.update'
-        }
-        // Cenário 2: Admin APROVOU uma nova logo (e não a deletou)
-        else if (dadosRecebidos.logo) {
-          const logoAntigaUrl = projeto.logoUrl; // Deleta a logo antiga do DB
+        } else if (dadosRecebidos.logo) {
+          const logoAntigaUrl = projeto.logoUrl;
           if (logoAntigaUrl) {
             try {
               const filePath = path.join(__dirname, "..", "..", logoAntigaUrl);
@@ -421,19 +412,15 @@ export class AdminController {
               );
             }
           }
-          // Define a nova logo para ser salva no 'projeto.update'
           adminEditedData.logoUrl = dadosRecebidos.logo;
         }
-        // ****** FIM DA CORREÇÃO ******
 
         // Lógica para IMAGENS
-        // Cenário 1: Admin APROVOU novas imagens (de dados_atualizacao)
         if (
           dadosRecebidos.imagens &&
           Array.isArray(dadosRecebidos.imagens) &&
           dadosRecebidos.imagens.length > 0
         ) {
-          // Deleta todas as imagens antigas do DB
           const imagensAntigas = await ImagemProjeto.findAll({
             where: { projetoId: projeto.projetoId },
             transaction,
@@ -453,28 +440,21 @@ export class AdminController {
             transaction,
           });
 
-          // ****** INÍCIO DA CORREÇÃO ******
-          // FILTRA as imagens pendentes, removendo as que o admin marcou para deletar
           const imagensParaCriar = dadosRecebidos.imagens.filter(
             (url: string) =>
               !(urlsParaExcluir && urlsParaExcluir.includes(url)),
           );
-          // ****** FIM DA CORREÇÃO ******
 
           const novasImagens = imagensParaCriar.map((url: string) => ({
-            // Usa o array filtrado
             url,
             projetoId: projeto.projetoId,
           }));
           await ImagemProjeto.bulkCreate(novasImagens, { transaction });
-        }
-        // Cenário 2: NÃO havia imagens novas, mas admin deletou imagens ANTIGAS
-        else if (
+        } else if (
           urlsParaExcluir &&
           Array.isArray(urlsParaExcluir) &&
           urlsParaExcluir.length > 0
         ) {
-          // Apenas deleta as imagens específicas que o admin marcou
           const imagensParaDeletar = await ImagemProjeto.findAll({
             where: {
               url: urlsParaExcluir,
@@ -501,32 +481,25 @@ export class AdminController {
         }
       }
 
-      // ****** INÍCIO DA CORREÇÃO ******
-      // 2. Remove o 'urlsParaExcluir' para não tentar salvar na tabela 'Projeto'
       delete adminEditedData.urlsParaExcluir;
-      // ****** FIM DA CORREÇÃO ******
 
-      // 3. APLICA AS ALTERAÇÕES FINAIS (Texto do Admin + Arquivos)
       await projeto.update(
         {
-          ...adminEditedData, // Aplica todas as edições de texto E 'logoUrl' (seja null ou nova)
+          ...adminEditedData,
           status: StatusProjeto.ATIVO,
           ativo: true,
-          dados_atualizacao: null, // Limpa os dados pendentes
+          dados_atualizacao: null,
         },
         { transaction },
       );
 
-      // 4. LÓGICA DE E-MAIL (inalterada)
       if (statusOriginal === StatusProjeto.PENDENTE_APROVACAO) {
         emailInfo = {
-          // ... (email de aprovação)
           subject: "Seu cadastro no Aqui Tem ODS foi Aprovado!",
-          html: `<h1>Olá, ${projeto.prefeitura}!</h1> <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p><p>O ID do seu projeto é: <strong>${projeto.projetoId}</strong>.<p><strong>Atenção:</strong> É muito importante que você guarde este número de ID em um local seguro. Ele será <strong>necessário</strong> sempre que você precisar solicitar uma <strong>atualização</strong> ou a <strong>exclusão</strong> do seu projeto em nossa plataforma. Sem ele, não será possível realizar essas ações.</p><p>Agradecemos por fazer parte do Aqui Tem ODS.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS.</strong></p>`,
+          html: `<h1>Olá, ${projeto.prefeitura}!</h1> <p>Temos uma ótima notícia: o seu projeto, <strong>${projeto.nomeProjeto}</strong>, foi aprovado e já está visível na nossa plataforma!</p><p>O ID do seu projeto é: <strong>${projeto.projetoId}</strong>.<p><strong>Atenção:</strong> É muito importante que você guarde este número de ID em um local seguro. Ele será <strong>NECESSÁRIO</strong> sempre que você precisar solicitar uma <strong>atualização</strong> ou a <strong>exclusão</strong> do seu projeto em nossa plataforma. Sem ele, não será possível realizar essas ações.</p><p>Agradecemos por fazer parte do Aqui Tem ODS.</p><br><p>Atenciosamente,</p><p><strong>Equipe Aqui Tem ODS.</strong></p>`,
         };
       } else if (statusOriginal === StatusProjeto.PENDENTE_ATUALIZACAO) {
         emailInfo = {
-          // ... (email de atualização)
           subject:
             "Sua solicitação de atualização no Aqui Tem ODS foi Aprovada!",
           html: `
@@ -545,7 +518,6 @@ export class AdminController {
 
       await transaction.commit();
 
-      // Envio de e-mail (inalterado)
       if (emailInfo && projeto.emailContato) {
         try {
           await EmailService.sendGenericEmail({
@@ -575,7 +547,6 @@ export class AdminController {
 
   static async getAllActiveProjetos(req: Request, res: Response) {
     try {
-      // Reutiliza a lógica que já existe no seu ProjetoService
       const projetos = await ProjetoService.listarTodos();
       return res.json(projetos);
     } catch (error) {
@@ -588,9 +559,7 @@ export class AdminController {
 
   static async adminUpdateProjeto(req: Request, res: Response) {
     const { id } = req.params;
-    // Pega o corpo da requisição
     const adminEditedData = req.body;
-    // Extrai as URLs para exclusão, se houver
     const { urlsParaExcluir } = req.body;
 
     const transaction = await sequelize.transaction();
@@ -603,7 +572,6 @@ export class AdminController {
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
-      // 1. Lógica para Excluir LOGO
       if (
         adminEditedData.hasOwnProperty("logoUrl") &&
         adminEditedData.logoUrl === null &&
@@ -622,27 +590,23 @@ export class AdminController {
         }
       }
 
-      // 2. Lógica para Excluir Imagens do Portfólio
-      // O front-end deve enviar um array 'urlsParaExcluir: [url1, url2]'
       if (
         urlsParaExcluir &&
         Array.isArray(urlsParaExcluir) &&
         urlsParaExcluir.length > 0
       ) {
-        // Encontra as imagens no banco de dados que correspondem às URLs E ao projeto
         const imagensParaDeletar = await ImagemProjeto.findAll({
           where: {
-            url: urlsParaExcluir, // Busca todas as imagens com URLs no array
+            url: urlsParaExcluir,
             projetoId: projeto.projetoId,
           },
           transaction,
         });
 
-        // Deleta os arquivos físicos
         for (const imagem of imagensParaDeletar) {
           try {
             const filePath = path.join(__dirname, "..", "..", imagem.url);
-            await fs.unlink(filePath); // Deleta o arquivo físico
+            await fs.unlink(filePath);
             console.log(`Imagem de portfólio deletada: ${imagem.url}`);
           } catch (err) {
             console.error(
@@ -652,24 +616,20 @@ export class AdminController {
           }
         }
 
-        // Deleta as referências do banco de dados
         await ImagemProjeto.destroy({
           where: {
-            // Deleta pelos IDs únicos que encontramos
             id: imagensParaDeletar.map((img) => img.id),
           },
           transaction,
         });
       }
 
-      // Remove campos que não devem ser atualizados diretamente no 'Projeto'
       delete adminEditedData.projetoId;
       delete adminEditedData.status;
       delete adminEditedData.ativo;
       delete adminEditedData.dados_atualizacao;
       delete adminEditedData.urlsParaExcluir;
 
-      // Aplica as atualizações de texto E a 'logoUrl: null' (se aplicável)
       await projeto.update(adminEditedData, { transaction });
       await transaction.commit();
 
@@ -699,7 +659,6 @@ export class AdminController {
       }
 
       await deleteProjectFolder(projeto.ods, projeto.nomeProjeto);
-      // Deleta o projeto do banco de dados
       await projeto.destroy();
 
       return res.status(204).send();
@@ -714,7 +673,7 @@ export class AdminController {
   static async rejectRequest(req: Request, res: Response) {
     const { id } = req.params;
     const { motivoRejeicao } = req.body;
-    const transaction = await sequelize.transaction(); // Usa transação
+    const transaction = await sequelize.transaction();
     try {
       const projeto = await Projeto.findByPk(id, { transaction });
       if (!projeto) {
@@ -724,7 +683,7 @@ export class AdminController {
 
       let responseMessage = "Solicitação rejeitada com sucesso.";
       let emailInfo: { subject: string; html: string } | null = null;
-      const emailParaNotificar = projeto.emailContato; // Guarda antes de modificar
+      const emailParaNotificar = projeto.emailContato;
       const motivoHtml = motivoRejeicao
         ? `<p><strong>Motivo da Rejeição:</strong> ${motivoRejeicao}</p>`
         : "<p>Para mais detalhes, entre em contato conosco.</p>";
@@ -748,12 +707,11 @@ export class AdminController {
         projeto.status === StatusProjeto.PENDENTE_ATUALIZACAO ||
         projeto.status === StatusProjeto.PENDENTE_EXCLUSAO
       ) {
-        const statusAnterior = projeto.status; // Guarda para o email
+        const statusAnterior = projeto.status;
         projeto.status = StatusProjeto.ATIVO;
         projeto.dados_atualizacao = null;
-        await projeto.save({ transaction }); // Salva dentro da transação
+        await projeto.save({ transaction });
 
-        // Email para atualização/exclusão rejeitada
         if (statusAnterior === StatusProjeto.PENDENTE_ATUALIZACAO) {
           emailInfo = {
             subject:
@@ -786,9 +744,8 @@ export class AdminController {
         });
       }
 
-      await transaction.commit(); // Comita as alterações
+      await transaction.commit();
 
-      // Envio do e-mail de rejeição (fora da transação)
       if (emailInfo && emailParaNotificar) {
         try {
           await EmailService.sendGenericEmail({
@@ -809,9 +766,8 @@ export class AdminController {
 
       return res.status(200).json({ message: responseMessage });
     } catch (error) {
-      await transaction.rollback(); // Rollback em caso de erro inesperado
+      await transaction.rollback();
       console.error("Erro ao rejeitar a solicitação:", error);
-      // TODO: Considerar deletar arquivos temporários aqui também, se aplicável
       return res
         .status(500)
         .json({ message: "Erro ao rejeitar a solicitação." });
@@ -819,11 +775,9 @@ export class AdminController {
   }
 
   static async getAvaliacoesByProjeto(req: Request, res: Response) {
-    // <--- NOME MUDOU
     try {
-      const { projetoId } = req.params; // <--- PEGA O ID DA URL
+      const { projetoId } = req.params;
 
-      // 1. Busca o projeto para termos o nome e para validar
       const projeto = await Projeto.findByPk(projetoId, {
         attributes: ["projetoId", "nomeProjeto", "ods"],
       });
@@ -832,9 +786,8 @@ export class AdminController {
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
 
-      // 2. Busca as avaliações DAQUELE projeto
       const avaliacoes = await Avaliacao.findAll({
-        where: { projetoId: projetoId, parent_id: null }, // <--- FILTRO AQUI
+        where: { projetoId: projetoId, parent_id: null },
         include: [
           {
             model: Usuario,
@@ -898,7 +851,6 @@ export class AdminController {
           .json({ message: "Nenhum projeto ativo para exportar." });
       }
 
-      // Cabeçalhos do CSV
       const headers = [
         "ID",
         "Nome do Projeto",
@@ -937,7 +889,6 @@ export class AdminController {
         return stringField;
       };
 
-      // Monta o conteúdo do CSV com o separador correto
       let csvContent = headers.join(SEPARATOR) + "\n";
 
       projetos.forEach((projeto) => {
@@ -982,7 +933,6 @@ export class AdminController {
 
   static async getProjetosByPrefeitura(req: Request, res: Response) {
     try {
-      // Decodifica o nome da URL (ex: "Prefeitura%20de%20Saquarema" -> "Prefeitura de Saquarema")
       const nomePrefeitura = decodeURIComponent(req.params.nome);
 
       const projetos = await Projeto.findAll({
@@ -1002,7 +952,6 @@ export class AdminController {
 
   static async getDashboardStats(req: Request, res: Response) {
     try {
-      // Busca apenas projetos ATIVOS
       const projetos = await Projeto.findAll({
         where: { status: StatusProjeto.ATIVO },
         attributes: [
@@ -1029,8 +978,6 @@ export class AdminController {
       const mediaEscala =
         totalProjetos > 0 ? (somaEscala / totalProjetos).toFixed(1) : 0;
 
-      // Contagem para gráfico de barras da escala
-
       const escalaDistribuicao = Array(11).fill(0);
       projetos.forEach((p) => {
         const escalaNum =
@@ -1047,7 +994,6 @@ export class AdminController {
 
       const projetosPorOdsMap: { [key: string]: number } = {};
 
-      // Inicializa todas as ODS com 0 para o gráfico ficar completo (opcional, mas recomendado)
       for (let i = 1; i <= 17; i++) projetosPorOdsMap[`ODS ${i}`] = 0;
       projetosPorOdsMap["ODS 18"] = 0;
 
@@ -1063,7 +1009,6 @@ export class AdminController {
         }
       });
 
-      // Transforma em lista e ordena numericamente (1, 2, ... 10)
       const chartProjetosPorOds = Object.entries(projetosPorOdsMap)
         .map(([ods, qtd]) => ({ ods, qtd }))
         .filter((item) => item.qtd > 0)
@@ -1138,7 +1083,6 @@ export class AdminController {
       const prefeituraMap: { [key: string]: number } = {};
 
       projetos.forEach((p) => {
-        // Normaliza o nome ou usa "Não Informada"
         const nome = p.prefeitura
           ? p.prefeitura.trim()
           : "Prefeitura Não Informada";
@@ -1147,7 +1091,7 @@ export class AdminController {
 
       const chartPrefeituras = Object.entries(prefeituraMap)
         .map(([nome, qtd]) => ({ nome, qtd }))
-        .sort((a, b) => b.qtd - a.qtd); // Ordena do maior para o menor
+        .sort((a, b) => b.qtd - a.qtd);
 
       return res.json({
         totalProjetos,
@@ -1177,7 +1121,8 @@ export class AdminController {
       return res.status(500).json({ message: "Erro ao buscar estatísticas." });
     }
   }
-static async getAllUsers(req: Request, res: Response) {
+
+  static async getAllUsers(req: Request, res: Response) {
     try {
       const usuarios = await Usuario.findAll({
         attributes: {
@@ -1241,40 +1186,33 @@ static async getAllUsers(req: Request, res: Response) {
         return res.status(404).json({ message: "Usuário não encontrado." });
       }
 
-      // 1. Busca todas as avaliações deste usuário para pegar os IDs
       const avaliacoesDoUsuario = await Avaliacao.findAll({
         where: { usuarioId: id },
-        attributes: ["avaliacoesId"], // Certifique-se que a PK é esta mesma
+        attributes: ["avaliacoesId"],
         transaction,
       });
 
       const idsAvaliacoes = avaliacoesDoUsuario.map((a) => a.avaliacoesId);
 
       if (idsAvaliacoes.length > 0) {
-        // 2. Deleta as RESPOSTAS (filhas) dessas avaliações
-        // CORREÇÃO: Mudamos de 'parentId' para 'parent_id' para bater com o banco
         await Avaliacao.destroy({
-          where: { parent_id: idsAvaliacoes }, 
+          where: { parent_id: idsAvaliacoes },
           transaction,
         });
 
-        // 3. Deleta as próprias avaliações do usuário
         await Avaliacao.destroy({
           where: { usuarioId: id },
           transaction,
         });
       }
 
-      // 4. Deleta o usuário
       await usuario.destroy({ transaction });
 
       await transaction.commit();
-      
-      return res
-        .status(200)
-        .json({
-          message: "Usuário e todos os seus dados vinculados foram excluídos.",
-        });
+
+      return res.status(200).json({
+        message: "Usuário e todos os seus dados vinculados foram excluídos.",
+      });
     } catch (error) {
       await transaction.rollback();
       console.error("Erro ao excluir usuário (admin):", error);
@@ -1330,7 +1268,6 @@ static async getAllUsers(req: Request, res: Response) {
           .json({ message: "Este usuário já está confirmado e ativo." });
       }
 
-      // Gera um novo token de confirmação
       const confirmationToken = crypto.randomBytes(20).toString("hex");
       usuario.confirmationToken = confirmationToken;
       await usuario.save();
