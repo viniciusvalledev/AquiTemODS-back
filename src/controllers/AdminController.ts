@@ -1,17 +1,19 @@
 import { Request, Response } from "express";
-import Projeto, { StatusProjeto } from "../entities/Projeto.entity"; 
 import * as jwt from "jsonwebtoken";
-import ImagemProjeto from "../entities/ImagemProjeto.entity";
-import sequelize from "../config/database";
-import fs from "fs/promises";
-import path from "path";
-import EmailService from "../utils/EmailService";
-import ProjetoService from "../services/ProjetoService";
-import Avaliacao from "../entities/Avaliacao.entity";
-import Usuario from "../entities/Usuario.entity";
 import * as bcrypt from "bcryptjs";
 import * as crypto from "crypto";
+import path from "path";
+import { Op } from "sequelize";
+import fs from "fs/promises";
+import sequelize from "../config/database";
+import Projeto, { StatusProjeto } from "../entities/Projeto.entity";
 import ContadorODS from "../entities/ContadorODS.entity";
+import ImagemProjeto from "../entities/ImagemProjeto.entity";
+import Avaliacao from "../entities/Avaliacao.entity";
+import Usuario from "../entities/Usuario.entity";
+import HistoricoAcessoMenu from "../entities/HistoricoAcessoMenu.entity";
+import EmailService from "../utils/EmailService";
+import ProjetoService from "../services/ProjetoService";
 
 const sanitize = (name: string) =>
   (name || "").replace(/[^a-z0-9]/gi, "_").toLowerCase();
@@ -353,9 +355,6 @@ export class AdminController {
         .json({ message: "Erro ao aprovar a solicitação." });
     }
   }
-
-  // ... (RESTANTE DO CÓDIGO PERMANECE O MESMO: editAndApproveRequest, rejectRequest, etc.)
-  // Certifique-se de manter todo o resto da classe AdminController abaixo.
 
   static async editAndApproveRequest(req: Request, res: Response) {
     const { id } = req.params;
@@ -1092,6 +1091,22 @@ export class AdminController {
       const chartPrefeituras = Object.entries(prefeituraMap)
         .map(([nome, qtd]) => ({ nome, qtd }))
         .sort((a, b) => b.qtd - a.qtd);
+
+      const { startDate, endDate } = req.query;
+
+      if (startDate && endDate) {
+        const start = new Date(`${startDate}T00:00:00.000Z`);
+        const end = new Date(`${endDate}T23:59:59.999Z`);
+
+        const cliquesNavPeriodo = await HistoricoAcessoMenu.count({
+          where: {
+            chave: "SUSTENTAI_NAV",
+            createdAt: { [Op.between]: [start, end] },
+          },
+        });
+
+        pageViews.sustentAiNav = cliquesNavPeriodo;
+      }
 
       return res.json({
         totalProjetos,

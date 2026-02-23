@@ -3,6 +3,10 @@ import SustentAi from "../entities/SustentAi.entity";
 import fs from "fs";
 import path from "path";
 import ContadorODS from "../entities/ContadorODS.entity";
+import { Op } from "sequelize";
+import sequelize from "../config/database";
+import HistoricoCliqueSustentAi from "../entities/HistoricoCliqueSustentAi.entity";
+import HistoricoAcessoMenu from "../entities/HistoricoAcessoMenu.entity";
 
 const toSlug = (str: string) => {
   return str
@@ -154,9 +158,45 @@ export class SustentAiController {
   // --- LISTAR ---
   static async getAll(req: Request, res: Response) {
     try {
+      const { startDate, endDate } = req.query;
+
       const cards = await SustentAi.findAll({ order: [["createdAt", "DESC"]] });
-      return res.status(200).json(cards);
+
+      if (!startDate || !endDate) {
+        return res.status(200).json(cards);
+      }
+
+      const start = new Date(`${startDate}T00:00:00.000Z`);
+      const end = new Date(`${endDate}T23:59:59.999Z`);
+
+      const historico = await HistoricoCliqueSustentAi.findAll({
+        attributes: [
+          "sustentAiId",
+          [sequelize.fn("COUNT", sequelize.col("id")), "totalCliques"],
+        ],
+        where: {
+          createdAt: { [Op.between]: [start, end] },
+        },
+        group: ["sustentAiId"],
+      });
+
+      const cliquesPorCard: Record<number, number> = {};
+      historico.forEach((row: any) => {
+        cliquesPorCard[row.sustentAiId] = parseInt(
+          row.getDataValue("totalCliques"),
+          10,
+        );
+      });
+
+      const cardsFiltrados = cards.map((card) => {
+        const cardData = card.toJSON();
+        cardData.visualizacoes = cliquesPorCard[card.id] || 0;
+        return cardData;
+      });
+
+      return res.status(200).json(cardsFiltrados);
     } catch (error) {
+      console.error(error);
       return res.status(500).json({ message: "Erro ao buscar boxes." });
     }
   }
@@ -202,6 +242,7 @@ export class SustentAiController {
       } else {
         await contador.increment("visualizacoes");
       }
+      await HistoricoAcessoMenu.create({ chave });
       return res.status(200).json({ message: "Clique navbar OK" });
     } catch (error) {
       console.error(error);
@@ -217,6 +258,7 @@ export class SustentAiController {
       if (!card) return res.status(404).json({ message: "Card não existe" });
 
       await card.increment("visualizacoes");
+      await HistoricoCliqueSustentAi.create({ sustentAiId: card.id });
       return res.status(200).json({ message: "Clique card OK" });
     } catch (error) {
       console.error(error);
