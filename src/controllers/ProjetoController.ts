@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import Projeto from "../entities/Projeto.entity";
 import ContadorODS from "../entities/ContadorODS.entity";
+import HistoricoVisualizacao from "../entities/Historico/HistoricoVizualizacao.entity";
 
 class ProjetoController {
   private _deleteUploadedFilesOnFailure = async (req: Request) => {
@@ -16,10 +17,10 @@ class ProjetoController {
           .unlink(file.path)
           .catch((err) =>
             console.error(
-              `Falha ao deletar arquivo ${file.path} durante rollback: ${err.message}`
-            )
-          )
-      )
+              `Falha ao deletar arquivo ${file.path} durante rollback: ${err.message}`,
+            ),
+          ),
+      ),
     );
   };
 
@@ -75,7 +76,7 @@ class ProjetoController {
 
   private _moveFilesAndPrepareData = async (
     req: Request,
-    existingInfo?: { ods: string; nomeProjeto: string }
+    existingInfo?: { ods: string; nomeProjeto: string },
   ): Promise<any> => {
     const dadosDoFormulario = req.body;
     const arquivos = req.files as {
@@ -95,7 +96,7 @@ class ProjetoController {
     await fs.mkdir(targetDir, { recursive: true });
 
     const moveFile = async (
-      file?: Express.Multer.File
+      file?: Express.Multer.File,
     ): Promise<string | undefined> => {
       if (!file) return undefined;
       const oldPath = file.path;
@@ -131,7 +132,7 @@ class ProjetoController {
       const dadosCompletos = await this._moveFilesAndPrepareData(req);
       const novoProjeto = await ProjetoService.cadastrarProjetoComImagens(
         // Chama o novo service
-        dadosCompletos
+        dadosCompletos,
       );
       return res.status(201).json(novoProjeto);
     } catch (error: any) {
@@ -142,7 +143,7 @@ class ProjetoController {
 
   public solicitarAtualizacao = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id); // Pega o ID dos parâmetros de rota
@@ -171,7 +172,7 @@ class ProjetoController {
       const projeto = await ProjetoService.solicitarAtualizacaoPorId(
         // Chama o novo método do service
         id,
-        dadosCompletos
+        dadosCompletos,
       );
 
       return res.status(200).json({
@@ -186,7 +187,7 @@ class ProjetoController {
 
   public solicitarExclusao = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id);
@@ -232,7 +233,7 @@ class ProjetoController {
 
   public listarTodos = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const projetos = await ProjetoService.listarTodos();
@@ -244,7 +245,7 @@ class ProjetoController {
 
   public buscarPorNomeUnico = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const nome = decodeURIComponent(req.params.nome);
@@ -253,7 +254,7 @@ class ProjetoController {
 
       if (!projeto) {
         console.log(
-          "[CONTROLLER] O serviço retornou null. Projeto não encontrado."
+          "[CONTROLLER] O serviço retornou null. Projeto não encontrado.",
         );
         return res.status(404).json({ message: "Projeto não encontrado." });
       }
@@ -262,7 +263,7 @@ class ProjetoController {
     } catch (error: any) {
       console.error(
         "[CONTROLLER] Ocorreu um erro inesperado ao buscar por nome:",
-        error
+        error,
       );
       return this._handleError(error, res);
     }
@@ -270,7 +271,7 @@ class ProjetoController {
 
   public buscarPorId = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id);
@@ -293,7 +294,7 @@ class ProjetoController {
       if (projetoJSON.avaliacoes && projetoJSON.avaliacoes.length > 0) {
         const somaDasNotas = projetoJSON.avaliacoes.reduce(
           (acc: number, avaliacao: { nota: number }) => acc + avaliacao.nota,
-          0
+          0,
         );
         const mediaCalculada = somaDasNotas / projetoJSON.avaliacoes.length;
         media = parseFloat(mediaCalculada.toFixed(1)); // Garante uma casa decimal
@@ -313,7 +314,7 @@ class ProjetoController {
 
   public buscarPorOds = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       // O nome da ODS vem da URL, então precisamos decodificá-lo
@@ -327,7 +328,7 @@ class ProjetoController {
 
   public alterarStatus = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const id = parseInt(req.params.id);
@@ -341,7 +342,7 @@ class ProjetoController {
       const projeto = await ProjetoService.alterarStatusAtivo(
         // Variável renomeada
         id,
-        ativo
+        ativo,
       );
       return res.status(200).json(projeto);
     } catch (error: any) {
@@ -351,7 +352,7 @@ class ProjetoController {
 
   public registrarVisualizacaoOds = async (
     req: Request,
-    res: Response
+    res: Response,
   ): Promise<Response> => {
     try {
       const { ods } = req.params;
@@ -380,6 +381,8 @@ class ProjetoController {
         where: { ods: odsFormatado },
         defaults: { visualizacoes: 0 },
       });
+
+      await HistoricoVisualizacao.create({ chave: odsFormatado });
 
       await registro.increment("visualizacoes");
 

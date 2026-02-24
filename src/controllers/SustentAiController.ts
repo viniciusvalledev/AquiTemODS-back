@@ -5,8 +5,8 @@ import path from "path";
 import ContadorODS from "../entities/ContadorODS.entity";
 import { Op } from "sequelize";
 import sequelize from "../config/database";
-import HistoricoCliqueSustentAi from "../entities/HistoricoCliqueSustentAi.entity";
-import HistoricoAcessoMenu from "../entities/HistoricoAcessoMenu.entity";
+import HistoricoCliqueSustentAi from "../entities/Historico/HistoricoCliqueSustentAi.entity";
+import HistoricoAcessoMenu from "../entities/Historico/HistoricoAcessoMenu.entity";
 
 const toSlug = (str: string) => {
   return str

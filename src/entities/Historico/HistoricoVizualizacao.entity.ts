@@ -1,12 +1,12 @@
 import { DataTypes, Model } from "sequelize";
-import sequelize from "../config/database";
+import sequelize from "../../config/database";
 
-class HistoricoAcessoMenu extends Model {
+class HistoricoVisualizacao extends Model {
   public id!: number;
   public chave!: string;
 }
 
-HistoricoAcessoMenu.init(
+HistoricoVisualizacao.init(
   {
     id: {
       type: DataTypes.INTEGER,
@@ -20,9 +20,9 @@ HistoricoAcessoMenu.init(
   },
   {
     sequelize,
-    tableName: "historico_acesso_menu",
-    timestamps: true,
+    tableName: "historico_visualizacoes",
+    timestamps: true, // Isso salva automaticamente o createdAt de cada clique
   },
 );
 
-export default HistoricoAcessoMenu;
+export default HistoricoVisualizacao;

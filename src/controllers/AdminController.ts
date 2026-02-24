@@ -11,7 +11,8 @@ import ContadorODS from "../entities/ContadorODS.entity";
 import ImagemProjeto from "../entities/ImagemProjeto.entity";
 import Avaliacao from "../entities/Avaliacao.entity";
 import Usuario from "../entities/Usuario.entity";
-import HistoricoAcessoMenu from "../entities/HistoricoAcessoMenu.entity";
+import HistoricoAcessoMenu from "../entities/Historico/HistoricoAcessoMenu.entity";
+import HistoricoVisualizacao from "../entities/Historico/HistoricoVizualizacao.entity";
 import EmailService from "../utils/EmailService";
 import ProjetoService from "../services/ProjetoService";
 
@@ -951,8 +952,23 @@ export class AdminController {
 
   static async getDashboardStats(req: Request, res: Response) {
     try {
+      const { startDate, endDate } = req.query;
+
+      let whereProjetos: any = { status: StatusProjeto.ATIVO };
+      let whereUsuarios: any = {};
+      let isDateFiltered = false;
+      let start: Date, end: Date;
+
+      if (startDate && endDate) {
+        isDateFiltered = true;
+        start = new Date(`${startDate}T00:00:00.000Z`);
+        end = new Date(`${endDate}T23:59:59.999Z`);
+
+        whereProjetos.createdAt = { [Op.between]: [start, end] };
+      }
+
       const projetos = await Projeto.findAll({
-        where: { status: StatusProjeto.ATIVO },
+        where: whereProjetos,
         attributes: [
           "projetoId",
           "venceuPspe",
@@ -992,7 +1008,6 @@ export class AdminController {
       }));
 
       const projetosPorOdsMap: { [key: string]: number } = {};
-
       for (let i = 1; i <= 17; i++) projetosPorOdsMap[`ODS ${i}`] = 0;
       projetosPorOdsMap["ODS 18"] = 0;
 
@@ -1018,7 +1033,6 @@ export class AdminController {
         });
 
       const apoioMap: { [key: string]: number } = {};
-
       projetos.forEach((p) => {
         if (p.apoio_planejamento) {
           const opcoes = p.apoio_planejamento.split(",").map((s) => s.trim());
@@ -1034,9 +1048,41 @@ export class AdminController {
         .map(([label, value]) => ({ label, value }))
         .sort((a, b) => b.value - a.value);
 
+      const prefeituraMap: { [key: string]: number } = {};
+      projetos.forEach((p) => {
+        const nome = p.prefeitura
+          ? p.prefeitura.trim()
+          : "Prefeitura Não Informada";
+        prefeituraMap[nome] = (prefeituraMap[nome] || 0) + 1;
+      });
+
+      const chartPrefeituras = Object.entries(prefeituraMap)
+        .map(([nome, qtd]) => ({ nome, qtd }))
+        .sort((a, b) => b.qtd - a.qtd);
+
       const totalUsuarios = await Usuario.count();
 
-      const visualizacoesRaw = await ContadorODS.findAll();
+      let visualizacoesRaw: any[] = [];
+
+      if (isDateFiltered) {
+        const historico = await HistoricoVisualizacao.findAll({
+          attributes: [
+            "chave",
+            [sequelize.fn("COUNT", sequelize.col("id")), "visualizacoes"],
+          ],
+          where: {
+            createdAt: { [Op.between]: [start!, end!] },
+          },
+          group: ["chave"],
+        });
+
+        visualizacoesRaw = historico.map((h: any) => ({
+          ods: h.chave,
+          visualizacoes: parseInt(h.getDataValue("visualizacoes"), 10),
+        }));
+      } else {
+        visualizacoesRaw = await ContadorODS.findAll();
+      }
 
       const mapaOds: { [key: string]: number } = {};
       for (let i = 1; i <= 17; i++) mapaOds[`ODS ${i}`] = 0;
@@ -1052,7 +1098,6 @@ export class AdminController {
 
       visualizacoesRaw.forEach((v) => {
         const chave = v.ods.trim().toUpperCase();
-
         if (!chave) return;
 
         if (chave === "HOME") {
@@ -1079,33 +1124,19 @@ export class AdminController {
           return numA - numB;
         });
 
-      const prefeituraMap: { [key: string]: number } = {};
-
-      projetos.forEach((p) => {
-        const nome = p.prefeitura
-          ? p.prefeitura.trim()
-          : "Prefeitura Não Informada";
-        prefeituraMap[nome] = (prefeituraMap[nome] || 0) + 1;
-      });
-
-      const chartPrefeituras = Object.entries(prefeituraMap)
-        .map(([nome, qtd]) => ({ nome, qtd }))
-        .sort((a, b) => b.qtd - a.qtd);
-
-      const { startDate, endDate } = req.query;
-
-      if (startDate && endDate) {
-        const start = new Date(`${startDate}T00:00:00.000Z`);
-        const end = new Date(`${endDate}T23:59:59.999Z`);
-
+      if (isDateFiltered) {
         const cliquesNavPeriodo = await HistoricoAcessoMenu.count({
           where: {
             chave: "SUSTENTAI_NAV",
-            createdAt: { [Op.between]: [start, end] },
+            createdAt: { [Op.between]: [start!, end!] },
           },
         });
-
         pageViews.sustentAiNav = cliquesNavPeriodo;
+      } else {
+        const cliquesNavGeral = await HistoricoAcessoMenu.count({
+          where: { chave: "SUSTENTAI_NAV" },
+        });
+        if (cliquesNavGeral > 0) pageViews.sustentAiNav = cliquesNavGeral;
       }
 
       return res.json({
